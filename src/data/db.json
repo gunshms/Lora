@@ -1,0 +1,52 @@
+[
+  {
+    "id": "1765410768081",
+    "title": "DIgital Age Horizontal 1",
+    "description": "Uploaded via Admin. Original file: DIgital Age - Horizontal_1.mp4",
+    "type": "video",
+    "videoSrc": "/uploads/videos/1765410768039-digital_age_-_horizontal_1.mp4",
+    "thumbnailSrc": "/uploads/thumbnails/1765410768075-captura_de_tela_2025-12-10_033521.png",
+    "tags": [
+      "digital",
+      "age",
+      "horizontal"
+    ]
+  },
+  {
+    "id": "1765410748456",
+    "title": "Final",
+    "description": "Uploaded via Admin. Original file: Final.mp4",
+    "type": "video",
+    "videoSrc": "/uploads/videos/1765410748443-final.mp4",
+    "thumbnailSrc": "/uploads/thumbnails/1765410748452-captura_de_tela_2025-12-10_033521.png",
+    "tags": [
+      "new"
+    ]
+  },
+  {
+    "id": "1",
+    "title": "Neon Nights",
+    "description": "A dark, atmospheric exploration of city lights.",
+    "type": "video",
+    "videoSrc": "/videos/example1.mp4",
+    "thumbnailSrc": "https://placehold.co/600x400/101010/FFFFFF/png?text=Neon+Nights",
+    "tags": [
+      "dark",
+      "urban",
+      "concept"
+    ]
+  },
+  {
+    "id": "2",
+    "title": "Golden Hour",
+    "description": "Cinematic sunlight captures.",
+    "type": "video",
+    "videoSrc": "/videos/example2.mp4",
+    "thumbnailSrc": "https://placehold.co/600x400/D4A12A/000000/png?text=Golden+Hour",
+    "tags": [
+      "light",
+      "nature",
+      "cinematic"
+    ]
+  }
+]

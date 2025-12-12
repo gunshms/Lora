@@ -10,7 +10,7 @@ const CLIENTS: ClientData[] = [
         id: "mancity",
         name: "Manchester City",
         logo: "/logos/manchester-city.png",
-        description: "Parceria Oficial. Atuamos diretamente em conjunto com o clube na estratégia e produção de conteúdo, realizando a edição de vídeos para grandes nomes como Kevin De Bruyne e Gleyverson Duarte, garantindo qualidade cinematográfica e alto engajamento."
+        description: "Parceria Oficial. Atuamos diretamente em conjunto com o clube na estratégia e produção de conteúdo, realizando a edição de vídeos para grandes nomes como Kevin De Bruyne e Gleiverson Duarte, garantindo qualidade cinematográfica e alto engajamento."
     },
     {
         id: "newcastle",
@@ -31,30 +31,28 @@ const CLIENTS: ClientData[] = [
         description: "Evolução Digital. Trabalhamos lado a lado com a Ubrandy para reestruturar e potencializar suas redes sociais, focando em estética high-end e estratégias de crescimento."
     },
     {
-        id: "gleyverson",
-        name: "Gleyverson Duarte",
+        id: "gleiverson",
+        name: "Gleiverson Duarte",
         logo: "/logos/geiverson-duarte.png",
         description: "Gestão 360°. Durante um ano de trabalho intensivo, assumimos a gerência completa de conteúdo. Elevamos o nível de produção, lançamos seu infoproduto e transformamos sua marca pessoal em uma empresa altamente lucrativa com uma comunidade fiel."
     }
 ];
 
 const LogoItem = ({ client, onClick }: { client: ClientData; onClick: (c: ClientData) => void }) => (
-    <motion.div
+    <div
         onClick={() => onClick(client)}
-        className="h-24 w-40 relative group flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm hover:border hover:border-white/10 transition-all duration-300 cursor-pointer"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        className="h-24 w-40 flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm transition-all duration-300 cursor-pointer shrink-0 group"
     >
-        <div className="relative w-full h-full opacity-100 group-hover:opacity-100 transition-opacity filter group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
-            {/* Using standard img tag to ensure visibility across all browsers/contexts avoiding Next.js specific issues in marquees */}
+        <div className="relative w-full h-full filter group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">
+            {/* Using standard img tag as it successfully rendered in the debug version */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
                 src={client.logo}
                 alt={client.name}
-                className="w-full h-full object-contain"
+                className={`w-full h-full object-contain opacity-100 transition-opacity ${client.id === 'gleiverson' ? 'scale-[1.4]' : ''}`}
             />
         </div>
-    </motion.div>
+    </div>
 );
 
 export default function LogoMarquee() {

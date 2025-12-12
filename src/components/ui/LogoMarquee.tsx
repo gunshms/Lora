@@ -38,10 +38,9 @@ const CLIENTS: ClientData[] = [
     }
 ];
 
-const LogoItem = ({ client, uniqueId, onClick }: { client: ClientData; uniqueId: string; onClick: (c: ClientData, id: string) => void }) => (
+const LogoItem = ({ client, onClick }: { client: ClientData; onClick: (c: ClientData) => void }) => (
     <motion.div
-        layoutId={uniqueId}
-        onClick={() => onClick(client, uniqueId)}
+        onClick={() => onClick(client)}
         className="h-24 w-40 relative group flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm hover:border hover:border-white/10 transition-all duration-300 cursor-pointer"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
@@ -68,17 +67,13 @@ export default function LogoMarquee() {
                         {/* Loop 4 times to fill screen + duplicate for seamless scroll */}
                         {[...Array(8)].map((_, groupIndex) => (
                             <React.Fragment key={groupIndex}>
-                                {CLIENTS.map((client, clientIndex) => {
-                                    const uniqueId = `logo-${client.id}-${groupIndex}-${clientIndex}`;
-                                    return (
-                                        <LogoItem
-                                            key={uniqueId}
-                                            client={client}
-                                            uniqueId={uniqueId}
-                                            onClick={(c, id) => setSelectedClient({ data: c, layoutId: id })}
-                                        />
-                                    );
-                                })}
+                                {CLIENTS.map((client, clientIndex) => (
+                                    <LogoItem
+                                        key={`${client.id}-${groupIndex}-${clientIndex}`}
+                                        client={client}
+                                        onClick={(c) => setSelectedClient({ data: c, layoutId: '' })}
+                                    />
+                                ))}
                             </React.Fragment>
                         ))}
                     </div>

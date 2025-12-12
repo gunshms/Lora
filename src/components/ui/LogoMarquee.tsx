@@ -41,17 +41,17 @@ const CLIENTS: ClientData[] = [
 const LogoItem = ({ client, onClick }: { client: ClientData; onClick: (c: ClientData) => void }) => (
     <motion.div
         onClick={() => onClick(client)}
-        className="h-24 w-40 relative group flex items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 hover:backdrop-blur-sm hover:border hover:border-white/20 transition-all duration-300 cursor-pointer"
+        className="h-24 w-40 relative group flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm hover:border hover:border-white/10 transition-all duration-300 cursor-pointer"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
     >
         <div className="relative w-full h-full opacity-100 group-hover:opacity-100 transition-opacity filter group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
-            <Image
+            {/* Using standard img tag to ensure visibility across all browsers/contexts avoiding Next.js specific issues in marquees */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
                 src={client.logo}
                 alt={client.name}
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="w-full h-full object-contain"
             />
         </div>
     </motion.div>
@@ -65,8 +65,8 @@ export default function LogoMarquee() {
             <section className="w-full relative overflow-hidden py-8 border-y border-white/10 z-20">
                 {/* Removed mask-gradient-fade for visibility debugging */}
                 {/* Ensure width is set explicitly */}
-                <div className="flex w-full overflow-hidden">
-                    <div className="flex animate-marquee whitespace-nowrap gap-x-16 items-center w-max min-w-full pl-8">
+                <div className="flex w-full overflow-hidden mask-gradient-fade">
+                    <div className="flex animate-marquee whitespace-nowrap gap-x-16 items-center w-max min-w-full">
                         {/* Loop 8 times to fill screen + duplicate for seamless scroll */}
                         {[...Array(8)].map((_, groupIndex) => (
                             <React.Fragment key={groupIndex}>

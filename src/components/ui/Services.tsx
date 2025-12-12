@@ -4,6 +4,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import Link from "next/link";
 import RGBButton from "./RGBButton";
 import ServiceCard from "./ServiceCard";
+import BudgetModal from "./BudgetModal";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -13,6 +14,7 @@ export default function Services() {
     // Start null so it's centered by default
     const [activeService, setActiveService] = useState<typeof services[0] | null>(null);
     const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const handleMouseEnter = (service: typeof services[0]) => {
         if (activeService?.slug === service.slug) return;
@@ -133,7 +135,10 @@ export default function Services() {
                                 className="mt-16"
                                 animate={{ opacity: activeService ? 0 : 1, y: activeService ? 20 : 0 }} // Fade out CTA
                             >
-                                <RGBButton href="/quote" text={dict.services.cta} />
+                                <RGBButton
+                                    text={dict.services.cta}
+                                    onClick={() => setIsModalOpen(true)}
+                                />
                             </motion.div>
 
                         </div>
@@ -141,6 +146,8 @@ export default function Services() {
 
                 </div>
             </div>
+
+            <BudgetModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </section>
     )
 }

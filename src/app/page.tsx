@@ -17,13 +17,21 @@ export default function Home() {
 
   return (
     <main className="relative z-10 w-full min-h-screen text-text-primary overflow-x-hidden">
-      <UnicornBackground />
+      {/* Mobile Fallback Background - Lightweight Gradient */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#050505] md:hidden" />
+
+      {/* Heavy 3D Elements - Desktop Only */}
+      <div className="hidden md:block">
+        <UnicornBackground />
+      </div>
       <LanguageSwitcher />
 
-      {/* 3D Background - Fixed */}
-      <Scene>
-        <HeroSculpture />
-      </Scene>
+      {/* 3D Background - Fixed (Desktop Only) */}
+      <div className="hidden md:block">
+        <Scene>
+          <HeroSculpture />
+        </Scene>
+      </div>
 
       {/* Hero Content Overlay */}
       <section className="relative z-10 w-full h-screen flex flex-col justify-center items-center pointer-events-none p-4">

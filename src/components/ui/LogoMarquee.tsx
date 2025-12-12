@@ -41,7 +41,7 @@ const CLIENTS: ClientData[] = [
 const LogoItem = ({ client, onClick }: { client: ClientData; onClick: (c: ClientData) => void }) => (
     <div
         onClick={() => onClick(client)}
-        className="h-24 w-40 flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm transition-all duration-300 cursor-pointer shrink-0 group"
+        className="h-20 w-28 md:h-24 md:w-40 flex items-center justify-center p-4 rounded-xl hover:bg-white/5 hover:backdrop-blur-sm transition-all duration-300 cursor-pointer shrink-0 group"
     >
         <div className="relative w-full h-full filter group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.5)] transition-all">
             {/* Using standard img tag as it successfully rendered in the debug version */}
@@ -64,7 +64,7 @@ export default function LogoMarquee() {
                 {/* Removed mask-gradient-fade for visibility debugging */}
                 {/* Ensure width is set explicitly */}
                 <div className="flex w-full overflow-hidden mask-gradient-fade">
-                    <div className="flex animate-marquee whitespace-nowrap gap-x-16 items-center w-max min-w-full">
+                    <div className="flex animate-marquee whitespace-nowrap gap-x-8 md:gap-x-16 items-center w-max min-w-full">
                         {/* Loop 8 times to fill screen + duplicate for seamless scroll */}
                         {[...Array(8)].map((_, groupIndex) => (
                             <React.Fragment key={groupIndex}>

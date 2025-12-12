@@ -169,7 +169,7 @@ export const dictionary = {
                     features: [
                         "Artistic Project Supervision",
                         "Advanced Motion Design (2D/3D)",
-                        "Campaign Perception",
+                        "Campaign Concept & Creation",
                         "Moodboards & Styleframes"
                     ]
                 },

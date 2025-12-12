@@ -2,6 +2,7 @@
 
 import { useLanguage } from "@/context/LanguageContext";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
@@ -14,6 +15,12 @@ export default function BudgetModal({ isOpen, onClose }: BudgetModalProps) {
     const { dict } = useLanguage();
     const [name, setName] = useState("");
     const [message, setMessage] = useState("");
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
 
     // Close on Escape key
     useEffect(() => {
@@ -36,17 +43,19 @@ export default function BudgetModal({ isOpen, onClose }: BudgetModalProps) {
         onClose(); // Optional: close modal after sending
     };
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 overflow-hidden">
+                <div className="fixed inset-0 z-[999999] flex items-center justify-center px-4 overflow-hidden">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-black/60 backdrop-blur-md"
+                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
                     />
 
                     {/* Modal Content */}
@@ -54,7 +63,7 @@ export default function BudgetModal({ isOpen, onClose }: BudgetModalProps) {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 md:p-10 shadow-2xl z-[101]"
+                        className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 md:p-10 shadow-2xl z-[1000000]"
                     >
                         {/* Close Button */}
                         <button
@@ -109,6 +118,7 @@ export default function BudgetModal({ isOpen, onClose }: BudgetModalProps) {
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

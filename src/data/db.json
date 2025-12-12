@@ -1,52 +1,158 @@
 [
   {
-    "id": "1765410768081",
-    "title": "DIgital Age Horizontal 1",
-    "description": "Uploaded via Admin. Original file: DIgital Age - Horizontal_1.mp4",
-    "type": "video",
-    "videoSrc": "/uploads/videos/1765410768039-digital_age_-_horizontal_1.mp4",
-    "thumbnailSrc": "/uploads/thumbnails/1765410768075-captura_de_tela_2025-12-10_033521.png",
-    "tags": [
-      "digital",
-      "age",
-      "horizontal"
-    ]
-  },
-  {
-    "id": "1765410748456",
-    "title": "Final",
-    "description": "Uploaded via Admin. Original file: Final.mp4",
-    "type": "video",
-    "videoSrc": "/uploads/videos/1765410748443-final.mp4",
-    "thumbnailSrc": "/uploads/thumbnails/1765410748452-captura_de_tela_2025-12-10_033521.png",
-    "tags": [
-      "new"
-    ]
-  },
-  {
     "id": "1",
-    "title": "Neon Nights",
-    "description": "A dark, atmospheric exploration of city lights.",
+    "title": "Video 1",
+    "description": "Uploaded via Admin",
     "type": "video",
-    "videoSrc": "/videos/example1.mp4",
-    "thumbnailSrc": "https://placehold.co/600x400/101010/FFFFFF/png?text=Neon+Nights",
+    "videoSrc": "https://youtube.com/shorts/k1TbYEo1m1k",
+    "youtubeId": "k1TbYEo1m1k",
     "tags": [
-      "dark",
-      "urban",
-      "concept"
-    ]
+      "shorts",
+      "new"
+    ],
+    "order": 0
   },
   {
     "id": "2",
-    "title": "Golden Hour",
-    "description": "Cinematic sunlight captures.",
+    "title": "Video 2",
+    "description": "Uploaded via Admin",
     "type": "video",
-    "videoSrc": "/videos/example2.mp4",
-    "thumbnailSrc": "https://placehold.co/600x400/D4A12A/000000/png?text=Golden+Hour",
+    "videoSrc": "https://youtu.be/2M7Zlqqh5pU",
+    "youtubeId": "2M7Zlqqh5pU",
     "tags": [
-      "light",
-      "nature",
-      "cinematic"
-    ]
+      "video",
+      "new"
+    ],
+    "order": 1
+  },
+  {
+    "id": "3",
+    "title": "Video 3",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/Mc5tBy7EFYQ",
+    "youtubeId": "Mc5tBy7EFYQ",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 2
+  },
+  {
+    "id": "4",
+    "title": "Video 4",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/iP1jmUtYXvg",
+    "youtubeId": "iP1jmUtYXvg",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 3
+  },
+  {
+    "id": "5",
+    "title": "Video 5",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/qhY4TbIx9Gg",
+    "youtubeId": "qhY4TbIx9Gg",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 4
+  },
+  {
+    "id": "6",
+    "title": "Video 6",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/fQFc2RKAptk",
+    "youtubeId": "fQFc2RKAptk",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 5
+  },
+  {
+    "id": "7",
+    "title": "Video 7",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/OSYaHff8yUM",
+    "youtubeId": "OSYaHff8yUM",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 6
+  },
+  {
+    "id": "8",
+    "title": "Video 8",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/shorts/oyt4ymqeILQ",
+    "youtubeId": "oyt4ymqeILQ",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 7
+  },
+  {
+    "id": "9",
+    "title": "Video 9",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=RoLe0-ZIPHM",
+    "youtubeId": "RoLe0-ZIPHM",
+    "tags": [
+      "video",
+      "new"
+    ],
+    "order": 8
+  },
+  {
+    "id": "10",
+    "title": "Video 10",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/shorts/BRlttRGCPAo",
+    "youtubeId": "BRlttRGCPAo",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 9
+  },
+  {
+    "id": "11",
+    "title": "Video 11",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtu.be/g0HYeZekgF4",
+    "youtubeId": "g0HYeZekgF4",
+    "tags": [
+      "video",
+      "new"
+    ],
+    "order": 10
+  },
+  {
+    "id": "12",
+    "title": "Video 12",
+    "description": "Uploaded via Admin",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/xB4ulcgBUhk",
+    "youtubeId": "xB4ulcgBUhk",
+    "tags": [
+      "shorts",
+      "new"
+    ],
+    "order": 11
   }
 ]

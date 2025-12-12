@@ -19,14 +19,14 @@ export default function Contact() {
                 </div>
 
                 <div className="flex flex-col gap-8 text-right">
-                    <a href="mailto:hello@lora.studio" className="text-xl md:text-3xl font-headline uppercase hover:text-accent-gold transition-colors">
-                        hello@lora.studio
+                    <a href="mailto:dumarq.prod@gmail.com" className="text-xl md:text-3xl font-headline uppercase hover:text-accent-gold transition-colors">
+                        dumarq.prod@gmail.com
                     </a>
 
                     <div className="flex justify-end gap-6 text-white/50">
-                        <a href="#" className="hover:text-white transition-colors"><Instagram size={20} /></a>
+                        <a href="https://instagram.com/prod.lora" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors"><Instagram size={20} /></a>
                         <a href="#" className="hover:text-white transition-colors"><Linkedin size={20} /></a>
-                        <a href="#" className="hover:text-white transition-colors"><Mail size={20} /></a>
+                        <a href="mailto:dumarq.prod@gmail.com" className="hover:text-white transition-colors"><Mail size={20} /></a>
                     </div>
 
                     <p className="text-[10px] font-body uppercase tracking-widest text-white/20 mt-8">

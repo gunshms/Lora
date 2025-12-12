@@ -11,16 +11,20 @@ interface ServiceCardProps {
     cover: string;
     progress: number; // 0 to 100
     indexLabel: string; // e.g. "01/05"
+    className?: string; // Allow override for absolute positioning
+    style?: React.CSSProperties;
 }
 
-export default function ServiceCard({ title, description, cover, progress, indexLabel }: ServiceCardProps) {
+export default function ServiceCard({ title, description, cover, progress, indexLabel, className, style }: ServiceCardProps) {
     return (
         <motion.div
-            initial={{ rotateY: -90, opacity: 0, x: 50 }}
-            animate={{ rotateY: 0, opacity: 1, x: 0 }}
-            exit={{ rotateY: 90, opacity: 0, x: 50 }}
-            transition={{ type: "spring", stiffness: 80, damping: 15 }}
-            className="relative overflow-hidden w-full max-w-sm h-96 sm:h-[32rem] shadow-[0_0_40px_rgba(0,0,0,0.5)] rounded-3xl z-40 border border-white/5"
+            initial={{ rotateY: -90, opacity: 0, x: 50, scale: 0.9 }}
+            animate={{ rotateY: 0, opacity: 1, x: 0, scale: 1 }}
+            exit={{ rotateY: 90, opacity: 0, x: -50, scale: 0.9, transition: { duration: 0.3, ease: "easeInOut" } }}
+            transition={{ type: "spring", stiffness: 100, damping: 20, mass: 1 }}
+            style={style}
+            // Added bg-[#0a0a0a] to prevent transparency bleed-through
+            className={`relative overflow-hidden w-full max-w-sm h-96 sm:h-[32rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-[2rem] z-40 border border-white/10 backdrop-blur-sm bg-[#0a0a0a] ${className || ''}`}
         >
             {/* Background Image */}
             <div className="absolute inset-0 w-full h-full">

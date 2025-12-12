@@ -3,7 +3,7 @@ export type Dictionary = typeof dictionary.pt;
 export const dictionary = {
     pt: {
         hero: {
-            triad: "Vídeo • Vida • Viral (VVV)",
+            triad: "Do Bruto • Ao • Memorável",
             scroll: "Scroll"
         },
         services: {
@@ -106,9 +106,9 @@ export const dictionary = {
         },
         manifesto: {
             label: "Manifesto",
-            headline: "Vídeo. Vida. Viral.",
-            subheadline: "Sculpting the (VVV).",
-            text: "Matéria digital é fluida. Pegamos a disciplina dos Velhos Mestres—luz, forma, tensão—e a estilhaçamos através da lente da renderização em tempo real."
+            headline: "Do Bruto ao Memorável.",
+            subheadline: "Elevando o padrão.",
+            text: "Não entregamos apenas vídeos. Transformamos filmagens brutas em narrativas que marcam, engajam e se tornam inesquecíveis."
         },
         contact: {
             location: "São Paulo — Global",

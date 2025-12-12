@@ -12,12 +12,29 @@ export default function Services() {
     const services = dict.services.list;
     // Start null so it's centered by default
     const [activeService, setActiveService] = useState<typeof services[0] | null>(null);
+    const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+
+    const handleMouseEnter = (service: typeof services[0]) => {
+        if (activeService?.slug === service.slug) return;
+
+        if (timeoutId) clearTimeout(timeoutId);
+
+        const id = setTimeout(() => {
+            setActiveService(service);
+        }, 100); // 100ms debounce
+        setTimeoutId(id);
+    };
+
+    const handleMouseLeave = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        setActiveService(null);
+    };
 
     return (
         <section className="relative w-full py-32 z-20 border-t border-white/5 min-h-screen flex items-center justify-center overflow-hidden">
             <div
                 className="max-w-7xl w-full mx-auto px-4 md:px-12 flex items-center justify-center relative min-h-[600px]"
-                onMouseLeave={() => setActiveService(null)} // Optional: Reset when leaving the entire section
+                onMouseLeave={handleMouseLeave}
             >
 
                 {/* 
@@ -27,19 +44,19 @@ export default function Services() {
                    - If activeService: Two columns (50% / 50%).
                 */}
 
-                <div className="flex w-full h-full items-center transition-all duration-700 ease-in-out">
+                <div className="flex w-full h-full items-center justify-center">
 
-                    {/* LEFT COLUMN: THE CARD (Hidden initially) */}
+                    {/* LEFT COLUMN: THE CARD */}
                     <motion.div
                         initial={{ width: 0, opacity: 0 }}
                         animate={{
                             width: activeService ? "50%" : "0%",
                             opacity: activeService ? 1 : 0
                         }}
-                        transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
-                        className="flex items-center justify-center overflow-hidden"
+                        transition={{ type: "spring", stiffness: 45, damping: 20, mass: 1 }}
+                        className="flex items-center justify-center overflow-hidden h-full relative"
                     >
-                        <div className="w-[340px] perspective-[2000px]">
+                        <div className="w-[340px] perspective-[2000px] relative z-20">
                             <AnimatePresence mode="wait">
                                 {activeService && (
                                     <ServiceCard
@@ -55,66 +72,71 @@ export default function Services() {
                         </div>
                     </motion.div>
 
-                    {/* RIGHT COLUMN: THE LIST (Centered initially, moves right) */}
+                    {/* RIGHT COLUMN: THE LIST */}
                     <motion.div
-                        className="flex flex-col justify-center"
+                        className="flex flex-col justify-center relative z-10 h-full"
+                        initial={false}
                         animate={{
                             width: activeService ? "50%" : "100%",
-                            paddingLeft: activeService ? "4rem" : "0rem"
-                            // When centered (100%), we want items centered? 
-                            // The user said "Centralized". 
                         }}
-                        transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+                        transition={{ type: "spring", stiffness: 45, damping: 20, mass: 1 }}
                     >
-                        {/* Header centered or aligned based on state */}
-                        <motion.div
-                            className="mb-12"
-                            animate={{
-                                textAlign: activeService ? "left" : "center",
-                                scale: activeService ? 0.9 : 1
-                            }}
-                        >
-                            <h2 className="text-sm font-body tracking-[0.5em] uppercase text-accent-gold mb-2">{dict.services.title}</h2>
-                            <h3 className="text-4xl md:text-6xl font-headline uppercase text-white leading-none">
-                                {activeService ? "Selected" : "Select Your"} <br /> {activeService ? "Service" : "Path"}
-                            </h3>
-                        </motion.div>
+                        {/* 
+                           Inner Container:
+                           Always centered in the column.
+                           As column moves Right (100% -> 50% width), this content slides Right smoothly.
+                        */}
+                        <div className="w-full max-w-xl mx-auto flex flex-col items-center text-center">
 
-                        <ul className={`flex flex-col gap-6 w-full ${!activeService && "items-center"}`}>
-                            {services.map((service, i) => {
-                                const isActive = activeService?.slug === service.slug;
+                            {/* Header */}
+                            <div className="mb-12 relative">
+                                <h2 className="text-sm font-body tracking-[0.5em] uppercase text-accent-gold mb-2">{dict.services.title}</h2>
+                                <h3 className="text-4xl md:text-6xl font-headline uppercase text-white leading-none">
+                                    Select Your <br /> Path
+                                </h3>
+                            </div>
 
-                                return (
-                                    <li
-                                        key={i}
-                                        className="group cursor-pointer relative w-max"
-                                        onMouseEnter={() => setActiveService(service as any)}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <span className={`text-xs font-mono transition-colors ${isActive ? 'text-accent-gold' : 'text-white/20'}`}>
-                                                0{i + 1}
-                                            </span>
-                                            <motion.div
-                                                className="relative"
-                                            >
-                                                <h3 className={`text-2xl md:text-4xl font-headline uppercase transition-all duration-300 ${isActive ? "text-accent-gold" : "text-white/50 group-hover:text-white"}`}>
-                                                    {service.title}
-                                                </h3>
-                                            </motion.div>
-                                        </div>
-                                    </li>
-                                );
-                            })}
-                        </ul>
+                            <ul className="flex flex-col gap-6 w-full items-center">
+                                {services.map((service, i) => {
+                                    const isActive = activeService?.slug === service.slug;
 
-                        <motion.div
-                            className="mt-16"
-                            animate={{
-                                alignSelf: activeService ? "flex-start" : "center"
-                            }}
-                        >
-                            <RGBButton href="/quote" text={dict.services.cta} />
-                        </motion.div>
+                                    return (
+                                        <li
+                                            key={i}
+                                            className="group cursor-pointer relative w-max"
+                                            onMouseEnter={() => handleMouseEnter(service as any)}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <span className={`text-xs font-mono transition-colors duration-500 ${isActive ? 'text-accent-gold' : 'text-white/20'}`}>
+                                                    0{i + 1}
+                                                </span>
+                                                <div className="relative">
+                                                    <h3 className={`text-2xl md:text-4xl font-headline uppercase transition-all duration-500 ${isActive ? "text-accent-gold scale-110" : "text-white/50 group-hover:text-white"}`}>
+                                                        {service.title}
+                                                    </h3>
+                                                    {/* Glow effect under active item */}
+                                                    {isActive && (
+                                                        <motion.div
+                                                            layoutId="glow"
+                                                            className="absolute -inset-4 bg-accent-gold/5 blur-xl rounded-full -z-10"
+                                                            transition={{ duration: 0.5 }}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+
+                            <motion.div
+                                className="mt-16"
+                                animate={{ opacity: activeService ? 0 : 1, y: activeService ? 20 : 0 }} // Fade out CTA
+                            >
+                                <RGBButton href="/quote" text={dict.services.cta} />
+                            </motion.div>
+
+                        </div>
                     </motion.div>
 
                 </div>

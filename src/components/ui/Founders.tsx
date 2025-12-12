@@ -14,8 +14,7 @@ export default function Founders() {
                     {/* Founder 1 */}
                     <div className="glass-panel p-8 md:p-12 flex flex-col items-start gap-6 group hover:border-white/20 transition-colors">
                         <div className="w-24 h-24 bg-white/5 rounded-full mb-4 border border-white/10 overflow-hidden relative">
-                            {/* Placeholder generic avatar */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+                            <img src="/gustavo.png" alt={dict.founders.gustavo.name} className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <h3 className="text-3xl font-headline uppercase text-white mb-2">{dict.founders.gustavo.name}</h3>
@@ -29,8 +28,7 @@ export default function Founders() {
                     {/* Founder 2 */}
                     <div className="glass-panel p-8 md:p-12 flex flex-col items-start gap-6 group hover:border-white/20 transition-colors">
                         <div className="w-24 h-24 bg-white/5 rounded-full mb-4 border border-white/10 overflow-hidden relative">
-                            {/* Placeholder generic avatar */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+                            <img src="/guilherme.jpg" alt={dict.founders.guilherme.name} className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <h3 className="text-3xl font-headline uppercase text-white mb-2">{dict.founders.guilherme.name}</h3>

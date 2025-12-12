@@ -127,7 +127,7 @@ export const dictionary = {
     },
     en: {
         hero: {
-            triad: "Video • Life • Viral (VLV)",
+            triad: "From Raw • To • Memorable",
             scroll: "Scroll"
         },
         services: {
@@ -230,9 +230,9 @@ export const dictionary = {
         },
         manifesto: {
             label: "Manifesto",
-            headline: "Video. Life. Viral.",
-            subheadline: "Sculpting the (VLV).",
-            text: "Digital matter is fluid. We take the discipline of the Old Masters—lighting, form, tension—and shatter it through the lens of real-time rendering."
+            headline: "From Raw to Memorable.",
+            subheadline: "Elevating the Standard.",
+            text: "We don't just deliver videos. We transform raw footage into narratives that mark, engage, and become unforgettable."
         },
         contact: {
             location: "São Paulo — Global",

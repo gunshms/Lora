@@ -14,12 +14,13 @@ export type PortfolioItem = {
     youtubeId?: string; // YouTube ID
     thumbnailSrc?: string; // Optional/Legacy
     tags: string[];
+    order?: number;
 };
 
-export default function PortfolioGrid() {
+export default function PortfolioGrid({ initialItems }: { initialItems?: PortfolioItem[] }) {
     const { dict } = useLanguage();
-    const [items, setItems] = useState<PortfolioItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [items, setItems] = useState<PortfolioItem[]>(initialItems || []);
+    const [loading, setLoading] = useState(!initialItems);
     const [selectedTag, setSelectedTag] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -32,8 +33,13 @@ export default function PortfolioGrid() {
         return () => setMounted(false);
     }, []);
 
-    // Fetch data on mount
+    // Fetch data on mount only if no initial items
     useEffect(() => {
+        if (initialItems) {
+            setLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             try {
                 // Add a timestamp to prevent caching
@@ -49,10 +55,8 @@ export default function PortfolioGrid() {
             }
         };
         fetchData();
-
-        const interval = setInterval(fetchData, 5000);
-        return () => clearInterval(interval);
-    }, []);
+        // No interval for static/hybrid mode to keep it simple
+    }, [initialItems]);
 
     const [limit, setLimit] = useState(3); // Default show 3
 

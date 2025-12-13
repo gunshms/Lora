@@ -17,14 +17,20 @@ type PortfolioItem = {
     order?: number;
 };
 
+export const dynamic = 'force-dynamic';
+
 // GET: List all items, sorted by 'order'
 export async function GET() {
     try {
-        const data: PortfolioItem[] = JSON.parse(await fs.readFile(dbPath, "utf-8"));
+        console.log(`[API] Reading from: ${dbPath}`);
+        const fileContent = await fs.readFile(dbPath, "utf-8");
+        const data: PortfolioItem[] = JSON.parse(fileContent);
+        console.log(`[API] Read ${data.length} items.`);
         // Sort by order capability (ascending)
         const sorted = data.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
         return NextResponse.json(sorted);
     } catch (error) {
+        console.error("[API] GET Error:", error);
         return NextResponse.json([], { status: 500 });
     }
 }
@@ -67,6 +73,7 @@ export async function POST(req: NextRequest) {
         await fs.writeFile(dbPath, JSON.stringify(data, null, 2));
         return NextResponse.json({ success: true, item: newItem });
     } catch (error) {
+        console.error("[API] POST Creation Failed:", error);
         return NextResponse.json({ error: "Creation failed" }, { status: 500 });
     }
 }

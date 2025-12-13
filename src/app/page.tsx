@@ -11,9 +11,15 @@ import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
 import UnicornBackground from "@/components/ui/UnicornBackground";
 import LogoMarquee from "@/components/ui/LogoMarquee";
 import { useLanguage } from "@/context/LanguageContext";
+import dbData from "@/data/db.json";
+import { PortfolioItem } from "@/components/ui/PortfolioGrid";
 
 export default function Home() {
   const { dict } = useLanguage();
+
+  // Cast safety if needed, or just trust the JSON matches the type
+  const initialPortfolio = (dbData as unknown as PortfolioItem[])
+    .sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
 
   return (
     <main className="relative z-10 w-full min-h-screen text-text-primary overflow-x-hidden">
@@ -54,7 +60,7 @@ export default function Home() {
       <LogoMarquee />
 
       {/* Content Sections */}
-      <PortfolioGrid />
+      <PortfolioGrid initialItems={initialPortfolio} />
       <Services />
       <Founders />
       <Manifesto />

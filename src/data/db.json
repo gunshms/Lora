@@ -1,309 +1,436 @@
 [
   {
-    "id": "1767794837001",
+    "id": "1767794837011",
     "title": "New Project Video 1",
     "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=Q9O7KtaClZw",
+    "youtubeId": "Q9O7KtaClZw",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837012",
+    "title": "New Project Video 2",
+    "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=JbhHcHCOf38",
+    "youtubeId": "JbhHcHCOf38",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837013",
+    "title": "New Project Video 3",
+    "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=e0wLe_4YNf0",
+    "youtubeId": "e0wLe_4YNf0",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837014",
+    "title": "New Project Video 4",
+    "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=TQm3NXUuNVE",
+    "youtubeId": "TQm3NXUuNVE",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837015",
+    "title": "New Project Video 5",
+    "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=A9Rb5kxy7Ic",
+    "youtubeId": "A9Rb5kxy7Ic",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837016",
+    "title": "New Project Video 6",
+    "description": "Added via User Request",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=ceeXsvhjqYM",
+    "youtubeId": "ceeXsvhjqYM",
+    "tags": [
+      "New",
+      "Project"
+    ],
+    "order": -30
+  },
+  {
+    "id": "1767794837005",
+    "title": "Novo Projeto - Instagram",
+    "description": "Veja mais no Instagram",
+    "type": "video",
+    "videoSrc": "https://www.instagram.com/p/DSh1hdHkVjC/",
+    "instagramId": "DSh1hdHkVjC",
+    "tags": [
+      "New",
+      "Instagram"
+    ],
+    "order": -20
+  },
+  {
+    "id": "1767794837001",
+    "title": "PARE DE FUGIR! O escapismo está destruindo seu propósito",
+    "description": "Uma conversa franca sobre propósito e foco.",
     "type": "video",
     "videoSrc": "https://www.youtube.com/watch?v=5nCainEaYhQ",
     "youtubeId": "5nCainEaYhQ",
     "tags": [
-      "new",
-      "featured"
-    ],
-    "order": -10
-  },
-  {
-    "id": "1767794837002",
-    "title": "New Project Video 2",
-    "description": "Added via User Request",
-    "type": "video",
-    "videoSrc": "https://www.youtube.com/watch?v=nalq1lPoFQY",
-    "youtubeId": "nalq1lPoFQY",
-    "tags": [
-      "new",
-      "featured"
-    ],
-    "order": -10
-  },
-  {
-    "id": "1767794837003",
-    "title": "New Project Video 3",
-    "description": "Added via User Request",
-    "type": "video",
-    "videoSrc": "https://www.youtube.com/watch?v=X7wVJguc5uo",
-    "youtubeId": "X7wVJguc5uo",
-    "tags": [
-      "new",
-      "featured"
-    ],
-    "order": -10
-  },
-  {
-    "id": "1767794837004",
-    "title": "New Project Video 4",
-    "description": "Added via User Request",
-    "type": "video",
-    "videoSrc": "https://www.youtube.com/watch?v=_rBv24wbr60",
-    "youtubeId": "_rBv24wbr60",
-    "tags": [
-      "new",
-      "featured"
-    ],
-    "order": -10
-  },
-  {
-    "id": "1765546750553",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/GBfo5KQOSEU?feature=share",
-    "youtubeId": "GBfo5KQOSEU",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546718013",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/88gd0dIt9Gs?feature=share",
-    "youtubeId": "88gd0dIt9Gs",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546684922",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/ZssQ48l0F6M?feature=share",
-    "youtubeId": "ZssQ48l0F6M",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546654219",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/CbtG-i0qhh0?feature=share",
-    "youtubeId": "CbtG-i0qhh0",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546632193",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/Tzkp2CTJDhc?feature=share",
-    "youtubeId": "Tzkp2CTJDhc",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546608160",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtu.be/xfqWmGj4jdQ",
-    "youtubeId": "xfqWmGj4jdQ",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546578087",
-    "title": "New Video",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/5c4J2mjB6Kg?feature=share",
-    "youtubeId": "5c4J2mjB6Kg",
-    "tags": [],
-    "order": -1
-  },
-  {
-    "id": "1765546533929",
-    "title": "Gleiverson Duarte",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/00QOvfL-8SY?feature=share",
-    "youtubeId": "00QOvfL-8SY",
-    "tags": [
-      "shorts",
-      "desenho",
-      "gerente de conteudo"
-    ],
-    "order": -1
-  },
-  {
-    "id": "1765546466777",
-    "title": "Gleiverson Duarte - Cris",
-    "description": "YouTube Import",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/3qHe6-dh4HI",
-    "youtubeId": "3qHe6-dh4HI",
-    "tags": [
-      "shorts",
-      "desenho",
-      "gerente de conteudo"
-    ],
-    "order": -1,
-    "thumbnailSrc": ""
-  },
-  {
-    "id": "1",
-    "title": "Video 1",
-    "description": "Uploaded via Admin",
-    "type": "video",
-    "videoSrc": "https://youtube.com/shorts/k1TbYEo1m1k",
-    "youtubeId": "k1TbYEo1m1k",
-    "tags": [
-      "shorts",
-      "new"
-    ],
-    "order": 0
-  },
-  {
-    "id": "2",
-    "title": "Video 2",
-    "description": "Uploaded via Admin",
-    "type": "video",
-    "videoSrc": "https://youtu.be/2M7Zlqqh5pU",
-    "youtubeId": "2M7Zlqqh5pU",
-    "tags": [
-      "video",
-      "new"
+      "Reflexão",
+      "Talks"
     ],
     "order": 1
   },
   {
-    "id": "3",
-    "title": "Video 3",
-    "description": "Uploaded via Admin",
+    "id": "1767794837002",
+    "title": "PC Gamer Custo-Benefício que SURPREENDE",
+    "description": "Montagem e testes de hardware.",
     "type": "video",
-    "videoSrc": "https://youtube.com/shorts/Mc5tBy7EFYQ",
-    "youtubeId": "Mc5tBy7EFYQ",
+    "videoSrc": "https://www.youtube.com/watch?v=nalq1lPoFQY",
+    "youtubeId": "nalq1lPoFQY",
     "tags": [
-      "shorts",
-      "new"
+      "Tech",
+      "Hardware"
     ],
     "order": 2
   },
   {
-    "id": "4",
-    "title": "Video 4",
-    "description": "Uploaded via Admin",
+    "id": "1767794837003",
+    "title": "Kasu - Flutuando (Official Video)",
+    "description": "Produção e Edição de Videoclipe.",
     "type": "video",
-    "videoSrc": "https://youtube.com/shorts/iP1jmUtYXvg",
-    "youtubeId": "iP1jmUtYXvg",
+    "videoSrc": "https://www.youtube.com/watch?v=X7wVJguc5uo",
+    "youtubeId": "X7wVJguc5uo",
     "tags": [
-      "shorts",
-      "new"
+      "Música",
+      "Edição",
+      "Videoclipe"
     ],
     "order": 3
   },
   {
-    "id": "5",
-    "title": "Video 5",
-    "description": "Uploaded via Admin",
+    "id": "1767794837004",
+    "title": "Heróis ou Vilões? IAs Debatem",
+    "description": "Debate gerado por Inteligência Artificial.",
     "type": "video",
-    "videoSrc": "https://youtube.com/shorts/qhY4TbIx9Gg",
-    "youtubeId": "qhY4TbIx9Gg",
+    "videoSrc": "https://www.youtube.com/watch?v=_rBv24wbr60",
+    "youtubeId": "_rBv24wbr60",
     "tags": [
-      "shorts",
-      "new"
+      "Tech",
+      "Debate",
+      "AI"
     ],
     "order": 4
   },
   {
-    "id": "6",
-    "title": "Video 6",
-    "description": "Uploaded via Admin",
+    "id": "1765546750553",
+    "title": "Cena NY - Reel",
+    "description": "Cinematic Travel Edit",
     "type": "video",
-    "videoSrc": "https://youtube.com/shorts/fQFc2RKAptk",
-    "youtubeId": "fQFc2RKAptk",
+    "videoSrc": "https://youtube.com/shorts/GBfo5KQOSEU?feature=share",
+    "youtubeId": "GBfo5KQOSEU",
     "tags": [
-      "shorts",
-      "new"
+      "Lifestyle",
+      "Travel",
+      "Shorts"
     ],
     "order": 5
   },
   {
-    "id": "7",
-    "title": "Video 7",
-    "description": "Uploaded via Admin",
+    "id": "1765546718013",
+    "title": "Guilherme Test",
+    "description": "Bastidores e Testes",
     "type": "video",
-    "videoSrc": "https://youtube.com/shorts/OSYaHff8yUM",
-    "youtubeId": "OSYaHff8yUM",
+    "videoSrc": "https://youtube.com/shorts/88gd0dIt9Gs?feature=share",
+    "youtubeId": "88gd0dIt9Gs",
     "tags": [
-      "shorts",
-      "new"
+      "Bastidores",
+      "Shorts"
     ],
     "order": 6
   },
   {
-    "id": "8",
-    "title": "Video 8",
-    "description": "Uploaded via Admin",
+    "id": "1765546684922",
+    "title": "Gilberto Cav - Edição",
+    "description": "Edição dinâmica para creators",
     "type": "video",
-    "videoSrc": "https://www.youtube.com/shorts/oyt4ymqeILQ",
-    "youtubeId": "oyt4ymqeILQ",
+    "videoSrc": "https://youtube.com/shorts/ZssQ48l0F6M?feature=share",
+    "youtubeId": "ZssQ48l0F6M",
     "tags": [
-      "shorts",
-      "new"
+      "Edição",
+      "Shorts"
     ],
     "order": 7
   },
   {
-    "id": "9",
-    "title": "Video 9",
-    "description": "Uploaded via Admin",
+    "id": "1765546654219",
+    "title": "Fut Alemanha - Carlos Lys",
+    "description": "Highlights de Futebol",
     "type": "video",
-    "videoSrc": "https://www.youtube.com/watch?v=RoLe0-ZIPHM",
-    "youtubeId": "RoLe0-ZIPHM",
+    "videoSrc": "https://youtube.com/shorts/CbtG-i0qhh0?feature=share",
+    "youtubeId": "CbtG-i0qhh0",
     "tags": [
-      "video",
-      "new"
+      "Esporte",
+      "Edição",
+      "Shorts"
     ],
     "order": 8
   },
   {
-    "id": "10",
-    "title": "Video 10",
-    "description": "Uploaded via Admin",
+    "id": "1765546632193",
+    "title": "Former U S",
+    "description": "Edição Política/Histórica",
     "type": "video",
-    "videoSrc": "https://www.youtube.com/shorts/BRlttRGCPAo",
-    "youtubeId": "BRlttRGCPAo",
+    "videoSrc": "https://youtube.com/shorts/Tzkp2CTJDhc?feature=share",
+    "youtubeId": "Tzkp2CTJDhc",
     "tags": [
-      "shorts",
-      "new"
+      "Edição",
+      "Shorts"
     ],
     "order": 9
   },
   {
-    "id": "11",
-    "title": "Video 11",
-    "description": "Uploaded via Admin",
+    "id": "1765546608160",
+    "title": "Edit Fight Club",
+    "description": "Edição Criativa - Filme",
     "type": "video",
-    "videoSrc": "https://youtu.be/g0HYeZekgF4",
-    "youtubeId": "g0HYeZekgF4",
+    "videoSrc": "https://youtu.be/xfqWmGj4jdQ",
+    "youtubeId": "xfqWmGj4jdQ",
     "tags": [
-      "video",
-      "new"
+      "Edição",
+      "Cinema"
     ],
     "order": 10
   },
   {
+    "id": "1765546578087",
+    "title": "Despertar",
+    "description": "Reflexão Visual",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/5c4J2mjB6Kg?feature=share",
+    "youtubeId": "5c4J2mjB6Kg",
+    "tags": [
+      "Reflexão",
+      "Lifestyle",
+      "Shorts"
+    ],
+    "order": 11
+  },
+  {
+    "id": "1765546533929",
+    "title": "Drawing in the Lage",
+    "description": "Processo criativo de desenho",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/00QOvfL-8SY?feature=share",
+    "youtubeId": "00QOvfL-8SY",
+    "tags": [
+      "Desenho",
+      "Art",
+      "Shorts"
+    ],
+    "order": 12
+  },
+  {
+    "id": "1765546466777",
+    "title": "Sketching Chris Hemsworth",
+    "description": "Estudo de retrato rápido",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/3qHe6-dh4HI",
+    "youtubeId": "3qHe6-dh4HI",
+    "tags": [
+      "Desenho",
+      "Art",
+      "Shorts"
+    ],
+    "order": 13,
+    "thumbnailSrc": ""
+  },
+  {
+    "id": "1",
+    "title": "Academia Alemã Casavita",
+    "description": "Vídeo Institucional Fitness",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/k1TbYEo1m1k",
+    "youtubeId": "k1TbYEo1m1k",
+    "tags": [
+      "Institucional",
+      "Fitness",
+      "Shorts"
+    ],
+    "order": 14
+  },
+  {
+    "id": "2",
+    "title": "Açai Broker",
+    "description": "Comercial de produto",
+    "type": "video",
+    "videoSrc": "https://youtu.be/2M7Zlqqh5pU",
+    "youtubeId": "2M7Zlqqh5pU",
+    "tags": [
+      "Comercial",
+      "Tech"
+    ],
+    "order": 15
+  },
+  {
+    "id": "3",
+    "title": "Andre Brasil USA",
+    "description": "Vlog de Viagem",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/Mc5tBy7EFYQ",
+    "youtubeId": "Mc5tBy7EFYQ",
+    "tags": [
+      "Vlog",
+      "Travel",
+      "Shorts"
+    ],
+    "order": 16
+  },
+  {
+    "id": "4",
+    "title": "Anna V1",
+    "description": "Lifestyle e Cotidiano",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/iP1jmUtYXvg",
+    "youtubeId": "iP1jmUtYXvg",
+    "tags": [
+      "Lifestyle",
+      "Vlog",
+      "Shorts"
+    ],
+    "order": 17
+  },
+  {
+    "id": "5",
+    "title": "Another Concept",
+    "description": "Edição Conceitual",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/qhY4TbIx9Gg",
+    "youtubeId": "qhY4TbIx9Gg",
+    "tags": [
+      "Edição",
+      "Criativo",
+      "Shorts"
+    ],
+    "order": 18
+  },
+  {
+    "id": "6",
+    "title": "Café KAKASHI - Thiago",
+    "description": "Vlog e Café",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/fQFc2RKAptk",
+    "youtubeId": "fQFc2RKAptk",
+    "tags": [
+      "Vlog",
+      "Lifestyle",
+      "Shorts"
+    ],
+    "order": 19
+  },
+  {
+    "id": "7",
+    "title": "Capadocia - Victor",
+    "description": "Edição de Viagem",
+    "type": "video",
+    "videoSrc": "https://youtube.com/shorts/OSYaHff8yUM",
+    "youtubeId": "OSYaHff8yUM",
+    "tags": [
+      "Edição",
+      "Travel",
+      "Shorts"
+    ],
+    "order": 20
+  },
+  {
+    "id": "8",
+    "title": "Desenhando um Rosto",
+    "description": "Processo Artístico Realista",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/shorts/oyt4ymqeILQ",
+    "youtubeId": "oyt4ymqeILQ",
+    "tags": [
+      "Desenho",
+      "Art",
+      "Shorts"
+    ],
+    "order": 21
+  },
+  {
+    "id": "9",
+    "title": "Desenhando Idris Elba",
+    "description": "Arte Realista ASMR",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/watch?v=RoLe0-ZIPHM",
+    "youtubeId": "RoLe0-ZIPHM",
+    "tags": [
+      "Desenho",
+      "Art",
+      "ASMR"
+    ],
+    "order": 22
+  },
+  {
+    "id": "10",
+    "title": "Art Drawing Hobby",
+    "description": "Esboços Rápidos",
+    "type": "video",
+    "videoSrc": "https://www.youtube.com/shorts/BRlttRGCPAo",
+    "youtubeId": "BRlttRGCPAo",
+    "tags": [
+      "Desenho",
+      "Art",
+      "Shorts"
+    ],
+    "order": 23
+  },
+  {
+    "id": "11",
+    "title": "Code by Duda",
+    "description": "Programação e Tech",
+    "type": "video",
+    "videoSrc": "https://youtu.be/g0HYeZekgF4",
+    "youtubeId": "g0HYeZekgF4",
+    "tags": [
+      "Tech",
+      "Code"
+    ],
+    "order": 24
+  },
+  {
     "id": "12",
-    "title": "Video 12",
-    "description": "Uploaded via Admin",
+    "title": "Colab ManCity - Kevin de Bruyne",
+    "description": "Edição Esportiva",
     "type": "video",
     "videoSrc": "https://youtube.com/shorts/xB4ulcgBUhk",
     "youtubeId": "xB4ulcgBUhk",
     "tags": [
-      "shorts",
-      "new"
+      "Edição",
+      "Esporte",
+      "Shorts"
     ],
-    "order": 11
+    "order": 25
   }
 ]

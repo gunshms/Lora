@@ -10,8 +10,9 @@ export type PortfolioItem = {
     title: string;
     description: string;
     type: 'video' | 'image';
-    videoSrc: string; // YouTube URL
+    videoSrc: string; // YouTube or Instagram URL
     youtubeId?: string; // YouTube ID
+    instagramId?: string; // Instagram ID
     thumbnailSrc?: string; // Optional/Legacy
     tags: string[];
     order?: number;
@@ -33,29 +34,38 @@ export default function PortfolioGrid({ initialItems }: { initialItems?: Portfol
         return () => setMounted(false);
     }, []);
 
-    // Fetch data on mount only if no initial items
-    useEffect(() => {
-        if (initialItems) {
-            setLoading(false);
-            return;
+    // Fisher-Yates Shuffle
+    function shuffleAndSet(array: PortfolioItem[]) {
+        const shuffled = [...array];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
+        setItems(shuffled);
+    }
 
-        const fetchData = async () => {
-            try {
-                // Add a timestamp to prevent caching
-                const res = await fetch(`/api/portfolio?t=${Date.now()}`);
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    setItems(data);
+    // Initialize with shuffled items on mount
+    useEffect(() => {
+        if (initialItems && initialItems.length > 0) {
+            shuffleAndSet(initialItems);
+            setLoading(false);
+        } else {
+            // If no initial items, we fetch then shuffle (already handled by fetch logic if we modify it, but let's just shuffle here if initial provided)
+            const fetchData = async () => {
+                try {
+                    const res = await fetch(`/api/portfolio?t=${Date.now()}`);
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        shuffleAndSet(data);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch portfolio", e);
+                } finally {
+                    setLoading(false);
                 }
-            } catch (e) {
-                console.error("Failed to fetch portfolio", e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-        // No interval for static/hybrid mode to keep it simple
+            };
+            fetchData();
+        }
     }, [initialItems]);
 
     const [limit, setLimit] = useState(3); // Default show 3
@@ -100,7 +110,7 @@ export default function PortfolioGrid({ initialItems }: { initialItems?: Portfol
                 >
                     <motion.div
                         layoutId={`card-${selectedId}`}
-                        className="relative w-full max-w-7xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10 z-[100000] cursor-default"
+                        className={`relative w-full ${selectedItem.instagramId ? 'max-w-md aspect-[9/16] md:aspect-square' : 'max-w-7xl aspect-video'} bg-black rounded-xl overflow-hidden shadow-2xl border border-white/10 z-[100000] cursor-default`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {selectedItem.youtubeId ? (
@@ -110,6 +120,14 @@ export default function PortfolioGrid({ initialItems }: { initialItems?: Portfol
                                 className="w-full h-full"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
+                            />
+                        ) : selectedItem.instagramId ? (
+                            <iframe
+                                src={`https://www.instagram.com/p/${selectedItem.instagramId}/embed`}
+                                className="w-full h-full bg-white"
+                                frameBorder="0"
+                                scrolling="no"
+                                allowTransparency={true}
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-white/50">Video Error</div>
@@ -214,9 +232,20 @@ function PortfolioCard({ item, onClick }: { item: PortfolioItem, onClick: () => 
 
     // YouTube Thumbnail Construction
     // maxresdefault is best, but hqdefault is safer fallback. We can try maxresdefault.
-    const thumbUrl = item.thumbnailSrc || (item.youtubeId
-        ? `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`
-        : "https://placehold.co/600x400/000000/FFFFFF/png?text=No+ID");
+    let thumbUrl = item.thumbnailSrc;
+
+    if (!thumbUrl) {
+        if (item.youtubeId) {
+            thumbUrl = `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`;
+        } else if (item.instagramId) {
+            // Instagram doesn't provide easy public thumbnails without API. 
+            // We can use a generic placeholder or try to fetch it server-side (complex).
+            // For now, let's use a stylish placeholder or the user provided one.
+            thumbUrl = "https://placehold.co/600x600/E1306C/FFFFFF/png?text=Instagram";
+        } else {
+            thumbUrl = "https://placehold.co/600x400/000000/FFFFFF/png?text=No+ID";
+        }
+    }
 
     return (
         <motion.div

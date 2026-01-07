@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Lora Studio | Renaissance + Real-Time",
+  title: "Lora Studio",
   description: "High Renaissance mastery meets next-gen liquid glass.",
 };
 

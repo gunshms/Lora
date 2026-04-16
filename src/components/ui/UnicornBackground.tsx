@@ -22,6 +22,8 @@ export default function UnicornBackground() {
                 <div className="absolute top-0 w-full h-full saturate-0">
                     <div
                         data-us-project="FixNvEwvWwbu3QX9qC3F"
+                        data-us-dpi="1"
+                        data-us-scale="0.8"
                         className="absolute w-full h-full left-0 top-0 overflow-hidden"
                     >
                         <div

@@ -3,7 +3,10 @@ export type PortfolioItem = {
     title: string;
     description: string;
     type: 'video' | 'image';
-    videoSrc?: string; // Path to video file in public/videos or external URL
+    videoSrc: string; // URL
+    youtubeId?: string;
+    instagramId?: string;
+    tiktokId?: string;
     thumbnailSrc: string;
     tags: string[];
 };

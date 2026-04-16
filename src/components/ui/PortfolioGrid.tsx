@@ -10,9 +10,10 @@ export type PortfolioItem = {
     title: string;
     description: string;
     type: 'video' | 'image';
-    videoSrc: string; // YouTube or Instagram URL
+    videoSrc: string; // YouTube, Instagram, or TikTok URL
     youtubeId?: string; // YouTube ID
     instagramId?: string; // Instagram ID
+    tiktokId?: string; // TikTok Video ID
     thumbnailSrc?: string; // Optional/Legacy
     tags: string[];
     order?: number;
@@ -129,6 +130,14 @@ export default function PortfolioGrid({ initialItems }: { initialItems?: Portfol
                                 scrolling="no"
                                 allowTransparency={true}
                             />
+                        ) : selectedItem.tiktokId ? (
+                            <iframe
+                                src={`https://www.tiktok.com/embed/v2/${selectedItem.tiktokId}`}
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-white/50">Video Error</div>
                         )}
@@ -238,10 +247,9 @@ function PortfolioCard({ item, onClick }: { item: PortfolioItem, onClick: () => 
         if (item.youtubeId) {
             thumbUrl = `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`;
         } else if (item.instagramId) {
-            // Instagram doesn't provide easy public thumbnails without API. 
-            // We can use a generic placeholder or try to fetch it server-side (complex).
-            // For now, let's use a stylish placeholder or the user provided one.
             thumbUrl = "https://placehold.co/600x600/E1306C/FFFFFF/png?text=Instagram";
+        } else if (item.tiktokId) {
+            thumbUrl = "https://placehold.co/600x800/25F4EE/000000/png?text=TikTok";
         } else {
             thumbUrl = "https://placehold.co/600x400/000000/FFFFFF/png?text=No+ID";
         }

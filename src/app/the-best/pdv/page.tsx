@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useAdega, StockItem } from "@/context/AdegaContext";
+import { useAdega, StockItem, HeldCart } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, 
@@ -16,7 +16,12 @@ import {
   AlertCircle, 
   Settings,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Lock,
+  LockOpen,
+  FolderMinus,
+  MessageCircle,
+  Percent
 } from "lucide-react";
 
 interface CartItem {
@@ -28,16 +33,30 @@ interface CartItem {
 }
 
 export default function PdvPage() {
-  const { stock, registerSale, updateStockPrices } = useAdega();
-
-  // Cart state
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { 
+    stock, 
+    registerSale, 
+    registerDebt,
+    updateStockPrices,
+    isPosActive,
+    setIsPosActive,
+    activeCart,
+    setActiveCart,
+    heldCarts,
+    setHeldCarts
+  } = useAdega();
   
   // UI states
   const [searchTerm, setSearchTerm] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "dinheiro" | "credito" | "debito">("pix");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "dinheiro" | "credito" | "debito" | "fiado">("pix");
   
+  // Custom discount state
+  const [discountVal, setDiscountVal] = useState("");
+
+  // Customer debt state
+  const [debtCustomerName, setDebtCustomerName] = useState("");
+
   // Cash/Change states
   const [receivedAmount, setReceivedAmount] = useState("");
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
@@ -53,6 +72,10 @@ export default function PdvPage() {
   // Mobile View state
   const [mobileTab, setMobileTab] = useState<"products" | "cart">("products");
 
+  // Session Closing Modal state
+  const [isClosingSession, setIsClosingSession] = useState(false);
+  const [sessionRevenue, setSessionRevenue] = useState(0);
+
   // Filter & Search stock
   const filteredProducts = useMemo(() => {
     return stock.filter(item => 
@@ -62,13 +85,22 @@ export default function PdvPage() {
   }, [stock, searchTerm]);
 
   // Totals calculations
+  const subtotalAmount = useMemo(() => {
+    return activeCart.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+  }, [activeCart]);
+
+  const parsedDiscount = useMemo(() => {
+    const val = parseFloat(discountVal.replace(",", "."));
+    return isNaN(val) || val < 0 ? 0 : val;
+  }, [discountVal]);
+
   const totalAmount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
-  }, [cart]);
+    return Math.max(0, subtotalAmount - parsedDiscount);
+  }, [subtotalAmount, parsedDiscount]);
 
   const totalItemsCount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0);
-  }, [cart]);
+    return activeCart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [activeCart]);
 
   const changeAmount = useMemo(() => {
     const received = parseFloat(receivedAmount.replace(",", "."));
@@ -81,7 +113,6 @@ export default function PdvPage() {
 
   // Cart actions
   const addToCart = (product: StockItem) => {
-    // If the product doesn't have prices defined yet, open the pricing dialog
     if (!product.price_sell || product.price_sell <= 0) {
       setAdjustingProduct(product);
       setTempPriceCost(product.price_cost?.toString() || "");
@@ -90,7 +121,7 @@ export default function PdvPage() {
       return;
     }
 
-    setCart((prev) => {
+    setActiveCart((prev) => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item => 
@@ -113,7 +144,7 @@ export default function PdvPage() {
   };
 
   const adjustCartQty = (id: string, amount: number) => {
-    setCart((prev) => 
+    setActiveCart((prev) => 
       prev.map(item => {
         if (item.id === id) {
           const newQty = item.quantity + amount;
@@ -125,10 +156,42 @@ export default function PdvPage() {
   };
 
   const removeFromCart = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
+    setActiveCart(prev => prev.filter(item => item.id !== id));
   };
 
-  // Price adjustment form submit
+  // Multiple carts held actions
+  const minimizeCurrentCart = () => {
+    if (activeCart.length === 0) return;
+
+    const nickname = window.prompt("Digite um nome/apelido para esta venda (ex: Balcão 2, João):");
+    const cartName = nickname?.trim() || `Carrinho ${heldCarts.length + 1}`;
+
+    const newHeld: HeldCart = {
+      id: `held-${Date.now()}`,
+      name: cartName,
+      items: [...activeCart]
+    };
+
+    setHeldCarts(prev => [...prev, newHeld]);
+    setActiveCart([]);
+  };
+
+  const restoreHeldCart = (held: HeldCart) => {
+    // If we have items in active cart, swap them!
+    if (activeCart.length > 0) {
+      const currentActiveHeld: HeldCart = {
+        id: `held-${Date.now()}`,
+        name: `Substituído (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`,
+        items: [...activeCart]
+      };
+      setHeldCarts(prev => [...prev.filter(c => c.id !== held.id), currentActiveHeld]);
+    } else {
+      setHeldCarts(prev => prev.filter(c => c.id !== held.id));
+    }
+    setActiveCart(held.items);
+  };
+
+  // Price form save
   const handlePriceSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adjustingProduct) return;
@@ -141,7 +204,6 @@ export default function PdvPage() {
     );
 
     if (success) {
-      // Re-fetch product to get the newly added prices and add to cart
       const updatedProduct = {
         ...adjustingProduct,
         price_cost: parseFloat(tempPriceCost.replace(",", ".")),
@@ -155,27 +217,44 @@ export default function PdvPage() {
 
   // Checkout submission
   const handleCheckoutSubmit = async () => {
-    if (cart.length === 0) return;
+    if (activeCart.length === 0) return;
 
-    const success = await registerSale(
-      cart.map(c => ({
-        id: c.id,
-        name: c.name,
-        quantity: c.quantity,
-        price_cost: c.price_cost,
-        price_sell: c.price_sell
-      })),
-      paymentMethod
-    );
+    let success = false;
+
+    if (paymentMethod === "fiado") {
+      success = await registerDebt(
+        debtCustomerName || "Cliente Sem Nome",
+        activeCart,
+        parsedDiscount
+      );
+    } else {
+      success = await registerSale(
+        activeCart,
+        paymentMethod,
+        parsedDiscount
+      );
+    }
 
     if (success) {
       setSuccessSaleTotal(totalAmount);
       setSuccessSaleChange(paymentMethod === "dinheiro" ? changeAmount : 0);
-      setCart([]);
+      setSessionRevenue(prev => prev + totalAmount);
+      setActiveCart([]);
       setIsCheckoutOpen(false);
       setReceivedAmount("");
+      setDiscountVal("");
+      setDebtCustomerName("");
       setIsSuccessOpen(true);
     }
+  };
+
+  // Cash Closeout Register summary
+  const handleCloseSessionSubmit = () => {
+    setIsPosActive(false);
+    setIsClosingSession(false);
+    setSessionRevenue(0);
+    setActiveCart([]);
+    setHeldCarts([]);
   };
 
   const formatCurrency = (value: number) => {
@@ -185,43 +264,94 @@ export default function PdvPage() {
     }).format(value);
   };
 
+  // Gatekeeper: If POS is inoperative, block PDV and show glowing red screen
+  if (!isPosActive) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] relative p-6">
+        <div className="absolute inset-0 bg-radial-gradient from-rose-500/[0.015] to-transparent pointer-events-none rounded-full blur-3xl animate-pulse" />
+        
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          className="w-full max-w-sm bg-[#0b0b0d] border border-rose-500/10 rounded-2xl p-8 flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(239,68,68,0.03)] text-center relative overflow-hidden"
+        >
+          {/* Animated red neon ring */}
+          <div className="relative w-20 h-20 bg-rose-500/5 rounded-full flex items-center justify-center border border-rose-500/20 shadow-[0_0_30px_rgba(239,68,68,0.05)]">
+            <Lock className="w-9 h-9 text-rose-500 animate-pulse" />
+            <span className="absolute inset-0 rounded-full border border-dashed border-rose-500/25 animate-[spin_60s_linear_infinite]" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-lg font-headline font-black tracking-widest text-rose-500 uppercase">Caixa Fechado</h2>
+            <p className="text-[11px] text-white/40 uppercase font-mono tracking-wider max-w-xs leading-relaxed">
+              O caixa operacional está inativo. Inicie o caixa para abrir o catálogo de vendas.
+            </p>
+          </div>
+
+          {/* Glowing Ligar button */}
+          <button
+            onClick={() => setIsPosActive(true)}
+            className="w-full mt-2 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:shadow-[0_0_30px_rgba(239,68,68,0.35)] active:scale-[0.98] duration-300"
+          >
+            Ligar Caixa
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6 py-2 flex flex-col flex-1 relative min-h-[calc(100vh-140px)]">
+    <div className="space-y-6 py-2 flex flex-col flex-1 relative min-h-[calc(100vh-140px)] select-none">
       
-      {/* Title Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-white/5">
+      {/* Title Header with neon green active state */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/5">
         <div>
-          <span className="text-xs font-mono uppercase text-emerald-400 tracking-[0.2em] font-semibold flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            Caixa Operacional
+          <span className="text-xs font-mono uppercase text-emerald-400 tracking-[0.2em] font-semibold flex items-center gap-1.5 animate-pulse">
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+            Caixa Operando Online
           </span>
           <h2 className="font-headline text-2xl font-black tracking-widest text-white mt-1 uppercase">
             FRENTE DE CAIXA
           </h2>
         </div>
 
-        {/* Mobile Tab Switcher */}
-        <div className="lg:hidden flex bg-[#0c0c0e] border border-white/5 p-1 rounded-lg">
+        {/* Closing registers button & Mobile Toggles */}
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setMobileTab("products")}
-            className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all ${
-              mobileTab === "products" 
-                ? "bg-white text-black font-semibold" 
-                : "text-white/50"
-            }`}
+            onClick={() => {
+              if (window.confirm("Deseja fechar o caixa e ver o resumo de faturamento da sessão?")) {
+                setIsClosingSession(true);
+              }
+            }}
+            className="px-4 py-2 border border-rose-500/20 bg-rose-950/10 text-rose-400 font-headline font-bold text-[10px] tracking-wider rounded uppercase hover:bg-rose-550/20 hover:text-rose-300 transition-colors"
           >
-            Produtos ({filteredProducts.length})
+            Fechar Caixa
           </button>
-          <button 
-            onClick={() => setMobileTab("cart")}
-            className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-              mobileTab === "cart" 
-                ? "bg-white text-black font-semibold" 
-                : "text-white/50"
-            }`}
-          >
-            Carrinho ({totalItemsCount})
-          </button>
+
+          {/* Mobile Tab Switcher */}
+          <div className="lg:hidden flex bg-[#0c0c0e] border border-white/5 p-1 rounded-lg">
+            <button 
+              onClick={() => setMobileTab("products")}
+              className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all ${
+                mobileTab === "products" 
+                  ? "bg-white text-black font-semibold animate-pulse" 
+                  : "text-white/50"
+              }`}
+            >
+              Produtos
+            </button>
+            <button 
+              onClick={() => setMobileTab("cart")}
+              className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                mobileTab === "cart" 
+                  ? "bg-white text-black font-semibold animate-pulse" 
+                  : "text-white/50"
+              }`}
+            >
+              Carrinho ({totalItemsCount})
+            </button>
+          </div>
         </div>
       </div>
 
@@ -252,7 +382,7 @@ export default function PdvPage() {
 
           {/* Products Grid */}
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-2">
               {filteredProducts.map((product) => {
                 const isOutOfStock = product.quantity <= 0;
                 const hasNoPrice = !product.price_sell || product.price_sell <= 0;
@@ -263,7 +393,6 @@ export default function PdvPage() {
                     onClick={() => addToCart(product)}
                     className="flex flex-col text-left bg-[#0b0b0d] border border-white/5 hover:border-white/10 p-4 rounded-xl relative overflow-hidden group transition-all duration-300 active:scale-[0.98]"
                   >
-                    {/* Header info */}
                     <div className="flex justify-between items-start w-full gap-2 mb-4">
                       <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
                         isOutOfStock 
@@ -274,16 +403,14 @@ export default function PdvPage() {
                       </span>
                     </div>
 
-                    {/* Product Name */}
                     <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors mb-2 min-h-[2.5rem]">
                       {product.name}
                     </h3>
 
-                    {/* Price Tag */}
                     <div className="mt-auto pt-2 border-t border-white/5 flex items-center justify-between w-full">
                       {hasNoPrice ? (
                         <span className="text-[10px] font-mono text-emerald-400/80 uppercase font-semibold flex items-center gap-1">
-                          <Settings className="w-3 h-3" /> Precificar
+                          <Settings className="w-3 h-3 animate-spin" /> Precificar
                         </span>
                       ) : (
                         <span className="font-mono text-sm font-bold text-white">
@@ -299,7 +426,7 @@ export default function PdvPage() {
             <div className="text-center py-20 bg-[#0b0b0d] border border-dashed border-white/5 rounded-xl flex flex-col items-center justify-center gap-3">
               <ShoppingBag className="w-8 h-8 text-white/10" />
               <p className="text-xs font-mono uppercase text-white/30 tracking-wider">
-                Nenhum produto correspondente encontrado.
+                Nenhum produto correspondente encontrado no estoque.
               </p>
             </div>
           )}
@@ -313,20 +440,32 @@ export default function PdvPage() {
             <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-white/50" />
-                <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase">Sua Venda</h3>
+                <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase">Venda Atual</h3>
               </div>
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/60">
-                {totalItemsCount} Itens
-              </span>
+              
+              <div className="flex items-center gap-2">
+                {activeCart.length > 0 && (
+                  <button
+                    onClick={minimizeCurrentCart}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 text-[9px] font-mono uppercase text-white/60 hover:text-white border border-white/5"
+                    title="Minimizar carrinho"
+                  >
+                    <FolderMinus className="w-3 h-3" /> Minimizar
+                  </button>
+                )}
+                <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/60">
+                  {totalItemsCount} Itens
+                </span>
+              </div>
             </div>
 
             {/* Cart Items List */}
-            {cart.length > 0 ? (
-              <div className="space-y-3 max-h-[35vh] lg:max-h-[45vh] overflow-y-auto pr-1">
-                {cart.map((item) => (
+            {activeCart.length > 0 ? (
+              <div className="space-y-3 max-h-[30vh] lg:max-h-[40vh] overflow-y-auto pr-1">
+                {activeCart.map((item) => (
                   <div 
                     key={item.id}
-                    className="flex justify-between items-center gap-4 px-3 py-2.5 bg-white/[0.01] border border-white/5 rounded-lg group"
+                    className="flex justify-between items-center gap-4 px-3 py-2.5 bg-white/[0.01] border border-white/5 rounded-lg group animate-fade-in"
                   >
                     <div className="space-y-0.5 flex-1 min-w-0">
                       <h4 className="text-xs font-medium text-white/95 truncate">{item.name}</h4>
@@ -335,7 +474,6 @@ export default function PdvPage() {
                       </span>
                     </div>
 
-                    {/* Quantity & Actions */}
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-1.5 bg-black/40 border border-white/5 rounded-md px-1.5 py-1">
                         <button 
@@ -372,24 +510,53 @@ export default function PdvPage() {
               </div>
             ) : (
               <div className="text-center py-16 text-xs text-white/30 font-mono uppercase bg-white/[0.005] border border-dashed border-white/5 rounded-lg">
-                Carrinho de vendas vazio.
+                Carrinho de caixa vazio.
               </div>
             )}
           </div>
 
           {/* Cart Bottom Summary */}
           <div className="pt-4 border-t border-white/5 mt-6 space-y-4">
+            
+            {/* Custom Discount input */}
+            {activeCart.length > 0 && (
+              <div className="flex items-center justify-between gap-4 p-3 bg-white/[0.01] border border-white/5 rounded-xl">
+                <span className="text-[10px] font-mono uppercase text-white/40 tracking-wider flex items-center gap-1">
+                  <Percent className="w-3 h-3" /> Desconto (R$)
+                </span>
+                <input 
+                  type="text" 
+                  value={discountVal}
+                  onChange={(e) => setDiscountVal(e.target.value)}
+                  placeholder="0,00"
+                  className="w-20 px-2 py-1 text-xs text-right bg-black/40 border border-white/10 rounded focus:border-white/20 focus:outline-none text-white font-mono placeholder-white/20"
+                />
+              </div>
+            )}
+
             <div className="flex justify-between items-baseline">
-              <span className="text-xs font-mono uppercase text-white/40 tracking-wider">Total a Pagar</span>
+              <span className="text-xs font-mono uppercase text-white/40 tracking-wider">Subtotal</span>
+              <span className="text-sm font-mono text-white/70">{formatCurrency(subtotalAmount)}</span>
+            </div>
+
+            {parsedDiscount > 0 && (
+              <div className="flex justify-between items-baseline text-xs text-emerald-400 font-mono">
+                <span>Desconto</span>
+                <span>-{formatCurrency(parsedDiscount)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-baseline">
+              <span className="text-xs font-mono uppercase text-emerald-400 tracking-wider font-bold">Total Final</span>
               <span className="text-2xl font-mono font-black text-white">{formatCurrency(totalAmount)}</span>
             </div>
 
             <button
-              disabled={cart.length === 0}
+              disabled={activeCart.length === 0}
               onClick={() => setIsCheckoutOpen(true)}
               className="w-full py-3 bg-white hover:bg-white/90 disabled:opacity-30 disabled:hover:bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/5"
             >
-              Finalizar Venda
+              Finalizar Compra
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -397,7 +564,38 @@ export default function PdvPage() {
 
       </div>
 
-      {/* Checkout Drawer (Slides from bottom on Mobile, right on Desktop) */}
+      {/* Held/Minimized Carts Floating Bubbles (Chat Bubbles at the bottom) */}
+      <AnimatePresence>
+        {heldCarts.length > 0 && (
+          <div className="fixed bottom-6 right-6 lg:bottom-8 lg:right-10 flex flex-col items-end gap-2.5 z-40">
+            <span className="text-[9px] font-mono uppercase text-white/40 bg-black/80 px-2 py-0.5 rounded border border-white/5 select-none tracking-wider">
+              Vendas Suspensas ({heldCarts.length})
+            </span>
+            <div className="flex flex-wrap gap-2.5 justify-end">
+              {heldCarts.map((held) => {
+                const heldTotal = held.items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+                return (
+                  <motion.button
+                    key={held.id}
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    onClick={() => restoreHeldCart(held)}
+                    className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded-xl text-xs font-mono transition-all shadow-[0_0_20px_rgba(16,185,129,0.05)]"
+                    title={`Recuperar: ${held.name} (${formatCurrency(heldTotal)})`}
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                    <span className="font-semibold">{held.name}</span>
+                    <span className="text-white/40">| {formatCurrency(heldTotal)}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Checkout Drawer */}
       <AnimatePresence>
         {isCheckoutOpen && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
@@ -420,8 +618,8 @@ export default function PdvPage() {
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
                   <div className="flex items-center gap-2">
-                    <DollarSign className="w-5 h-5 text-emerald-400" />
-                    <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">PAGAMENTO</h3>
+                    <DollarSign className="w-5 h-5 text-emerald-400 animate-pulse" />
+                    <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">Checkout Venda</h3>
                   </div>
                   <button 
                     onClick={() => setIsCheckoutOpen(false)}
@@ -431,11 +629,11 @@ export default function PdvPage() {
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                   {/* Total summary */}
                   <div className="p-4 bg-white/[0.01] border border-white/5 rounded-xl flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase text-white/40 tracking-wider">Total do Cupom</span>
-                    <span className="text-xl font-mono font-black text-white">{formatCurrency(totalAmount)}</span>
+                    <span className="text-xs font-mono uppercase text-white/40 tracking-wider">Líquido Final</span>
+                    <span className="text-xl font-mono font-black text-emerald-400">{formatCurrency(totalAmount)}</span>
                   </div>
 
                   {/* Payment Methods */}
@@ -446,14 +644,15 @@ export default function PdvPage() {
                         { id: "pix", label: "Pix" },
                         { id: "dinheiro", label: "Dinheiro" },
                         { id: "credito", label: "Crédito" },
-                        { id: "debito", label: "Débito" }
+                        { id: "debito", label: "Débito" },
+                        { id: "fiado", label: "Fiado" }
                       ].map((method) => (
                         <button
                           key={method.id}
                           onClick={() => setPaymentMethod(method.id as any)}
                           className={`py-3 px-4 rounded-xl text-xs font-mono uppercase tracking-wider border transition-all duration-300 font-semibold ${
                             paymentMethod === method.id 
-                              ? "bg-white text-black border-white shadow-lg shadow-white/5" 
+                              ? "bg-white text-black border-white shadow-lg" 
                               : "bg-[#0b0b0d] border-white/5 text-white/40 hover:text-white/70"
                           }`}
                         >
@@ -463,14 +662,13 @@ export default function PdvPage() {
                     </div>
                   </div>
 
-                  {/* Cash Change Panel (Only shows if paymentMethod === "dinheiro") */}
+                  {/* Cash Change Panel */}
                   {paymentMethod === "dinheiro" && (
                     <motion.div 
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-4 pt-2"
                     >
-                      {/* Input received amount */}
                       <div className="space-y-1">
                         <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor Recebido (R$)</label>
                         <input 
@@ -483,7 +681,6 @@ export default function PdvPage() {
                         />
                       </div>
 
-                      {/* Quick Notes buttons */}
                       <div className="flex gap-2">
                         {cashQuickNotes.map(note => (
                           <button
@@ -496,13 +693,33 @@ export default function PdvPage() {
                         ))}
                       </div>
 
-                      {/* Change display */}
                       {changeAmount > 0 && (
-                        <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex flex-col justify-center items-center gap-1.5">
+                        <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex flex-col justify-center items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.05)]">
                           <span className="text-[10px] font-mono uppercase text-emerald-400 tracking-wider">TROCO DEVOLUÇÃO</span>
-                          <span className="text-2xl font-mono font-black text-emerald-400">{formatCurrency(changeAmount)}</span>
+                          <span className="text-3xl font-mono font-black text-emerald-400">{formatCurrency(changeAmount)}</span>
                         </div>
                       )}
+                    </motion.div>
+                  )}
+
+                  {/* Customer Debt Panel ("Fiado") */}
+                  {paymentMethod === "fiado" && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="space-y-2 pt-2"
+                    >
+                      <div className="space-y-1">
+                        <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome do Cliente (Devedor)</label>
+                        <input 
+                          type="text"
+                          required
+                          value={debtCustomerName}
+                          onChange={(e) => setDebtCustomerName(e.target.value)}
+                          placeholder="Ex: João Silva, Amigo do Bairro"
+                          className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl focus:border-white/30 focus:outline-none text-white text-sm placeholder-white/20"
+                        />
+                      </div>
                     </motion.div>
                   )}
                 </div>
@@ -512,7 +729,10 @@ export default function PdvPage() {
               <div className="pt-6 border-t border-white/5 mt-auto">
                 <button
                   onClick={handleCheckoutSubmit}
-                  disabled={paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)}
+                  disabled={
+                    (paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)) ||
+                    (paymentMethod === "fiado" && !debtCustomerName.trim())
+                  }
                   className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all shadow-lg shadow-emerald-500/10"
                 >
                   Confirmar Pagamento
@@ -541,7 +761,7 @@ export default function PdvPage() {
               </button>
 
               <div className="flex items-center gap-3 mb-6">
-                <Settings className="w-6 h-6 text-emerald-400" />
+                <Settings className="w-6 h-6 text-emerald-400 animate-spin" />
                 <div>
                   <h3 className="font-headline text-base tracking-wider font-bold uppercase">Precificar Produto</h3>
                   <p className="text-xs text-white/40">Defina os valores de custo e venda de <strong>{adjustingProduct.name}</strong> para o PDV.</p>
@@ -607,20 +827,19 @@ export default function PdvPage() {
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full max-w-sm bg-[#0c0c0e] border border-white/10 rounded-2xl p-8 text-center text-white shadow-2xl relative flex flex-col items-center gap-6"
             >
-              {/* Checkmark animation */}
-              <div className="relative w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/30">
+              <div className="relative w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                 <Check className="w-10 h-10 text-emerald-400" />
                 <span className="absolute inset-0 rounded-full border border-dashed border-emerald-500/20 animate-spin" />
               </div>
 
               <div className="space-y-2">
-                <h3 className="font-headline text-lg font-bold tracking-widest text-emerald-400 uppercase">VENDA EFETUADA!</h3>
-                <p className="text-xs text-white/50 uppercase font-mono">ESTOQUE ABATIDO COM SUCESSO</p>
+                <h3 className="font-headline text-lg font-bold tracking-widest text-emerald-400 uppercase">Venda Confirmada!</h3>
+                <p className="text-xs text-white/50 uppercase font-mono">ESTOQUE ABATIDO EM TEMPO REAL</p>
               </div>
 
               <div className="w-full border-t border-b border-white/5 py-4 space-y-2">
                 <div className="flex justify-between text-xs font-mono text-white/40 uppercase">
-                  <span>Valor Recebido</span>
+                  <span>Faturado Liquido</span>
                   <span className="text-white font-bold">{formatCurrency(successSaleTotal)}</span>
                 </div>
                 {successSaleChange > 0 && (
@@ -635,8 +854,59 @@ export default function PdvPage() {
                 onClick={() => setIsSuccessOpen(false)}
                 className="w-full py-3 bg-white text-black font-headline font-bold text-xs tracking-wider rounded-xl uppercase hover:bg-white/90 transition-all shadow-lg"
               >
-                Nova Venda
+                Próxima Venda
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Close session summary modal (Fechar Caixa) */}
+      <AnimatePresence>
+        {isClosingSession && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-[#0e0e10] border border-white/10 rounded-2xl p-6 text-white shadow-2xl relative"
+            >
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                <LockOpen className="w-6 h-6 text-rose-500 animate-pulse" />
+                <div>
+                  <h3 className="font-headline text-base tracking-wider font-bold uppercase text-white">Fechar Turno de Caixa</h3>
+                  <p className="text-[10px] text-white/40 uppercase font-mono">Resumo do Período de Atendimento</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 py-2">
+                <div className="p-4 bg-white/[0.01] border border-white/5 rounded-xl flex flex-col items-center justify-center gap-1 shadow-sm">
+                  <span className="text-[9px] font-mono uppercase text-white/40 tracking-wider">FATURAMENTO ACUMULADO</span>
+                  <span className="text-2xl font-mono font-black text-emerald-400">{formatCurrency(sessionRevenue)}</span>
+                </div>
+
+                <div className="p-3.5 bg-rose-500/5 border border-rose-500/10 rounded-xl flex items-start gap-2.5">
+                  <AlertCircle className="w-4.5 h-4.5 text-rose-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[10px] font-mono text-rose-300 leading-relaxed uppercase">
+                    Ao confirmar, o caixa operacional será desligado, redefinindo as sessões ativas e limpando os carrinhos que não foram suspensos.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setIsClosingSession(false)}
+                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-mono uppercase font-bold text-white transition-colors"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={handleCloseSessionSubmit}
+                  className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-headline font-bold text-xs tracking-wider rounded-xl uppercase transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                >
+                  Desligar Caixa
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

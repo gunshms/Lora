@@ -3,6 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getSupabaseClient, SupabaseConfig } from "@/services/supabase";
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
 export interface CostItem {
   id: string;
   description: string;
@@ -10,6 +17,9 @@ export interface CostItem {
   buyer: "gu" | "melhor";
   paid: boolean;
   date: string;
+  installments_count?: number;
+  current_installment?: number;
+  installment_parent_id?: string;
 }
 
 export interface IdeaItem {
@@ -62,6 +72,33 @@ export interface AuditEntry {
   date: string;
 }
 
+export interface DebtItem {
+  id: string;
+  customer_name: string;
+  amount: number;
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    price_cost: number;
+    price_sell: number;
+  }[];
+  date: string;
+  status: "pending" | "settled";
+}
+
+export interface HeldCart {
+  id: string;
+  name: string;
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    price_cost: number;
+    price_sell: number;
+  }[];
+}
+
 interface AdegaContextType {
   costs: CostItem[];
   ideas: IdeaItem[];
@@ -69,6 +106,7 @@ interface AdegaContextType {
   fixedCosts: FixedCostItem[];
   sales: SaleItem[];
   auditLog: AuditEntry[];
+  debts: DebtItem[];
   currentUser: "Oliveira" | "Marques" | null;
   isLoadingData: boolean;
   isCloudMode: boolean;
@@ -76,13 +114,21 @@ interface AdegaContextType {
   dbError: string | null;
   isTestingConfig: boolean;
   mounted: boolean;
-  
+
+  // POS Session state
+  isPosActive: boolean;
+  setIsPosActive: (active: boolean) => void;
+  activeCart: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[];
+  setActiveCart: React.Dispatch<React.SetStateAction<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number }[]>>;
+  heldCarts: HeldCart[];
+  setHeldCarts: React.Dispatch<React.SetStateAction<HeldCart[]>>;
+
   // Auth actions
   login: (username: "Oliveira" | "Marques", pin: string) => boolean;
   logout: () => void;
 
   // Cost actions
-  addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean) => Promise<boolean>;
+  addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean, installmentsCount?: string) => Promise<boolean>;
   toggleCostPaid: (id: string) => Promise<void>;
   deleteCost: (id: string) => Promise<void>;
   
@@ -103,9 +149,14 @@ interface AdegaContextType {
   deleteFixedCost: (id: string) => Promise<void>;
 
   // Sales actions
-  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito") => Promise<boolean>;
+  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito", discountAmount?: number) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   
+  // Debt/Fiado actions
+  registerDebt: (customerName: string, items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], discountAmount?: number) => Promise<boolean>;
+  settleDebt: (id: string, paymentMethod: "pix" | "dinheiro" | "credito" | "debito") => Promise<void>;
+  renameDebtCustomer: (id: string, newName: string) => Promise<void>;
+
   // Audit Actions
   clearAuditLog: () => Promise<void>;
 
@@ -127,12 +178,18 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   // Auth States
   const [currentUser, setCurrentUser] = useState<"Oliveira" | "Marques" | null>(null);
 
+  // POS Session States (Persisted in global Context)
+  const [isPosActive, setIsPosActive] = useState(false);
+  const [activeCart, setActiveCart] = useState<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number }[]>([]);
+  const [heldCarts, setHeldCarts] = useState<HeldCart[]>([]);
+
   // Core Data States
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [ideas, setIdeas] = useState<IdeaItem[]>([]);
   const [stock, setStock] = useState<StockItem[]>([]);
   const [fixedCosts, setFixedCosts] = useState<FixedCostItem[]>([]);
   const [sales, setSales] = useState<SaleItem[]>([]);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -158,8 +215,30 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       setCurrentUser(savedUser);
     }
 
+    // Recover POS sessions from local storage
+    const savedActiveCart = localStorage.getItem("thebest_pdv_active_cart");
+    const savedHeldCarts = localStorage.getItem("thebest_pdv_held_carts");
+    const savedPosState = localStorage.getItem("thebest_pdv_active_state");
+    
+    if (savedActiveCart) setActiveCart(JSON.parse(savedActiveCart));
+    if (savedHeldCarts) setHeldCarts(JSON.parse(savedHeldCarts));
+    if (savedPosState) setIsPosActive(JSON.parse(savedPosState));
+
     initializeCloudData(activeConfig);
   }, []);
+
+  // Sync active sessions locally
+  useEffect(() => {
+    localStorage.setItem("thebest_pdv_active_cart", JSON.stringify(activeCart));
+  }, [activeCart]);
+
+  useEffect(() => {
+    localStorage.setItem("thebest_pdv_held_carts", JSON.stringify(heldCarts));
+  }, [heldCarts]);
+
+  useEffect(() => {
+    localStorage.setItem("thebest_pdv_active_state", JSON.stringify(isPosActive));
+  }, [isPosActive]);
 
   // Offline/Local Fallback Sync Effects
   useEffect(() => {
@@ -194,6 +273,12 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
+      localStorage.setItem("thebest_debts", JSON.stringify(debts));
+    }
+  }, [debts, isCloudMode, mounted]);
+
+  useEffect(() => {
+    if (mounted && !isCloudMode) {
       localStorage.setItem("thebest_audit", JSON.stringify(auditLog));
     }
   }, [auditLog, isCloudMode, mounted]);
@@ -204,6 +289,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     const localStock = localStorage.getItem("thebest_stock");
     const localFixed = localStorage.getItem("thebest_fixed");
     const localSales = localStorage.getItem("thebest_sales");
+    const localDebts = localStorage.getItem("thebest_debts");
     const localAudit = localStorage.getItem("thebest_audit");
 
     if (localCosts) setCosts(JSON.parse(localCosts));
@@ -211,6 +297,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     if (localStock) setStock(JSON.parse(localStock));
     if (localFixed) setFixedCosts(JSON.parse(localFixed));
     if (localSales) setSales(JSON.parse(localSales));
+    if (localDebts) setDebts(JSON.parse(localDebts));
     if (localAudit) setAuditLog(JSON.parse(localAudit));
   };
 
@@ -222,12 +309,13 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     if (client) {
       try {
-        const [costsRes, ideasRes, stockRes, fixedRes, salesRes, auditRes] = await Promise.all([
+        const [costsRes, ideasRes, stockRes, fixedRes, salesRes, debtsRes, auditRes] = await Promise.all([
           client.from("thebest_costs").select("*").order("date", { ascending: false }),
           client.from("thebest_ideas").select("*").order("date", { ascending: false }),
           client.from("thebest_stock").select("*"),
           client.from("thebest_fixed").select("*").order("dueDay", { ascending: true }),
           client.from("thebest_sales").select("*").order("date", { ascending: false }),
+          client.from("thebest_debts").select("*").order("date", { ascending: false }),
           client.from("thebest_audit").select("*").order("date", { ascending: false }),
         ]);
 
@@ -251,6 +339,15 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           if (localSales) setSales(JSON.parse(localSales));
         } else {
           setSales(salesRes.data || []);
+        }
+
+        // Handle debts table error gracefully
+        if (debtsRes.error) {
+          console.warn("Tabela 'thebest_debts' não encontrada. Usando dados locais.", debtsRes.error.message);
+          const localDebts = localStorage.getItem("thebest_debts");
+          if (localDebts) setDebts(JSON.parse(localDebts));
+        } else {
+          setDebts(debtsRes.data || []);
         }
 
         // Handle audit table error gracefully
@@ -297,7 +394,6 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     if (credentials[username] === pin) {
       setCurrentUser(username);
       localStorage.setItem("thebest_current_user", username);
-      // Log login success
       logAction(`Entrou no sistema`, username);
       return true;
     }
@@ -385,46 +481,77 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     setFixedCosts([]);
     setSales([]);
     setAuditLog([]);
+    setDebts([]);
     setCurrentUser(null);
     localStorage.removeItem("thebest_current_user");
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+  // Date helper to project installments
+  const addMonths = (dateStr: string, months: number): string => {
+    const d = new Date(dateStr + "T12:00:00");
+    d.setMonth(d.getMonth() + months);
+    return d.toISOString().split("T")[0];
   };
 
   // Cost Actions
-  const addCost = async (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean): Promise<boolean> => {
+  const addCost = async (
+    description: string, 
+    amount: string, 
+    buyer: "gu" | "melhor", 
+    paid: boolean,
+    installmentsCount?: string
+  ): Promise<boolean> => {
     if (!description.trim() || !amount) return false;
 
     const parsedVal = parseFloat(amount.replace(",", "."));
     if (isNaN(parsedVal) || parsedVal <= 0) return false;
 
-    const newCost: CostItem = {
-      id: `c-${Date.now()}`,
-      description: description.trim(),
-      amount: parsedVal,
-      buyer: buyer,
-      paid: paid,
-      date: new Date().toISOString().split("T")[0],
-    };
+    const count = installmentsCount ? parseInt(installmentsCount) : 1;
+    const finalCount = isNaN(count) || count < 1 ? 1 : count;
 
-    if (isCloudMode) {
-      const client = getSupabaseClient(dbConfig);
-      if (!client) return false;
+    const splitAmount = parsedVal / finalCount;
+    const parentId = finalCount > 1 ? `parent-${Date.now()}` : undefined;
+    const initialDate = new Date().toISOString().split("T")[0];
 
-      const { error } = await client.from("thebest_costs").insert(newCost);
-      if (error) {
-        alert(`Erro ao salvar na nuvem: ${error.message}`);
-        return false;
+    const generatedCosts: CostItem[] = [];
+
+    for (let i = 1; i <= finalCount; i++) {
+      const targetDate = addMonths(initialDate, i - 1);
+      const descText = finalCount > 1 ? `${description.trim()} (${i}/${finalCount})` : description.trim();
+
+      const newCost: CostItem = {
+        id: `c-${Date.now()}-${i}`,
+        description: descText,
+        amount: parseFloat(splitAmount.toFixed(2)),
+        buyer: buyer,
+        paid: paid,
+        date: targetDate,
+        installments_count: finalCount > 1 ? finalCount : undefined,
+        current_installment: finalCount > 1 ? i : undefined,
+        installment_parent_id: parentId
+      };
+
+      if (isCloudMode) {
+        const client = getSupabaseClient(dbConfig);
+        if (client) {
+          const { error } = await client.from("thebest_costs").insert(newCost);
+          if (error) {
+            console.error("Erro ao salvar parcela na nuvem:", error.message);
+          }
+        }
       }
+
+      generatedCosts.push(newCost);
     }
 
-    setCosts((prev) => [newCost, ...prev]);
-    logAction(`Lançou custo variável '${description.trim()}' no valor de ${formatCurrency(parsedVal)}`);
+    setCosts((prev) => [...generatedCosts, ...prev]);
+
+    if (finalCount > 1) {
+      logAction(`Lançou despesa parcelada '${description.trim()}' em ${finalCount}x de ${formatCurrency(splitAmount)} (Total: ${formatCurrency(parsedVal)})`);
+    } else {
+      logAction(`Lançou custo variável '${description.trim()}' no valor de ${formatCurrency(parsedVal)}`);
+    }
+
     return true;
   };
 
@@ -764,20 +891,25 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   // Sales Actions
   const registerSale = async (
     items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[],
-    paymentMethod: "pix" | "dinheiro" | "credito" | "debito"
+    paymentMethod: "pix" | "dinheiro" | "credito" | "debito",
+    discountAmount = 0
   ): Promise<boolean> => {
     if (items.length === 0) return false;
 
-    const totalAmount = items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+    const rawTotal = items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+    const totalAmount = Math.max(0, rawTotal - discountAmount);
+    
+    // Distribute discount proportionally across items for accurate profit math
+    const discountRatio = rawTotal > 0 ? totalAmount / rawTotal : 0;
     const totalCost = items.reduce((sum, item) => sum + (item.price_cost * item.quantity), 0);
     const profit = totalAmount - totalCost;
 
     const newSale: SaleItem = {
       id: `sale-${Date.now()}`,
-      items,
-      total_amount: totalAmount,
+      items: items.map(i => ({ ...i, price_sell: i.price_sell * discountRatio })),
+      total_amount: parseFloat(totalAmount.toFixed(2)),
       payment_method: paymentMethod,
-      profit,
+      profit: parseFloat(profit.toFixed(2)),
       date: new Date().toISOString(),
     };
 
@@ -813,7 +945,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     // Save sale record
     setSales((prev) => [newSale, ...prev]);
-    logAction(`Registrou venda no PDV no valor de ${formatCurrency(totalAmount)} (${items.length} itens) via ${paymentMethod.toUpperCase()}`);
+    logAction(`Registrou venda no PDV de ${formatCurrency(totalAmount)} (${items.length} itens) via ${paymentMethod.toUpperCase()}${discountAmount > 0 ? ` [Desconto: ${formatCurrency(discountAmount)}]` : ""}`);
     return true;
   };
 
@@ -833,6 +965,115 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     }
     setSales((prev) => prev.filter((s) => s.id !== id));
     logAction(`Cancelou e excluiu a venda cupom '${id}' no valor total de ${formatCurrency(targetSale.total_amount)}`);
+  };
+
+  // Debt/Fiado actions
+  const registerDebt = async (
+    customerName: string,
+    items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[],
+    discountAmount = 0
+  ): Promise<boolean> => {
+    if (!customerName.trim() || items.length === 0) return false;
+
+    const rawTotal = items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+    const finalAmount = Math.max(0, rawTotal - discountAmount);
+
+    const newDebt: DebtItem = {
+      id: `d-${Date.now()}`,
+      customer_name: customerName.trim(),
+      amount: parseFloat(finalAmount.toFixed(2)),
+      items: items.map(i => ({
+        id: i.id,
+        name: i.name,
+        quantity: i.quantity,
+        price_cost: i.price_cost,
+        price_sell: i.price_sell
+      })),
+      date: new Date().toISOString(),
+      status: "pending"
+    };
+
+    if (isCloudMode) {
+      const client = getSupabaseClient(dbConfig);
+      if (client) {
+        const { error } = await client.from("thebest_debts").insert(newDebt);
+        if (error) {
+          console.error("Erro ao registrar fiado na nuvem:", error.message);
+        }
+
+        // Decrement stock levels
+        for (const item of items) {
+          const currentStockItem = stock.find(s => s.id === item.id);
+          if (currentStockItem) {
+            const nextQty = Math.max(0, currentStockItem.quantity - item.quantity);
+            await client.from("thebest_stock").update({ quantity: nextQty }).eq("id", item.id);
+          }
+        }
+      }
+    }
+
+    // Update local stock levels
+    setStock((prev) =>
+      prev.map((s) => {
+        const soldItem = items.find((item) => item.id === s.id);
+        if (soldItem) {
+          return { ...s, quantity: Math.max(0, s.quantity - soldItem.quantity) };
+        }
+        return s;
+      })
+    );
+
+    setDebts((prev) => [newDebt, ...prev]);
+    logAction(`Registrou fiado pendente para o cliente '${customerName.trim()}' no valor de ${formatCurrency(finalAmount)}`);
+    return true;
+  };
+
+  const settleDebt = async (id: string, paymentMethod: "pix" | "dinheiro" | "credito" | "debito") => {
+    const debt = debts.find((d) => d.id === id);
+    if (!debt) return;
+
+    // Convert debt into a finalized sale
+    const totalCost = debt.items.reduce((sum, item) => sum + (item.price_cost * item.quantity), 0);
+    const profit = debt.amount - totalCost;
+
+    const newSale: SaleItem = {
+      id: `sale-${Date.now()}`,
+      items: debt.items,
+      total_amount: debt.amount,
+      payment_method: paymentMethod,
+      profit: parseFloat(profit.toFixed(2)),
+      date: new Date().toISOString()
+    };
+
+    if (isCloudMode) {
+      const client = getSupabaseClient(dbConfig);
+      if (client) {
+        // Delete debt and add sale record
+        await client.from("thebest_debts").delete().eq("id", id);
+        await client.from("thebest_sales").insert(newSale);
+      }
+    }
+
+    setDebts((prev) => prev.filter((d) => d.id !== id));
+    setSales((prev) => [newSale, ...prev]);
+    logAction(`Quitou fiado de '${debt.customer_name}' no valor de ${formatCurrency(debt.amount)} via ${paymentMethod.toUpperCase()}`);
+  };
+
+  const renameDebtCustomer = async (id: string, newName: string) => {
+    const debt = debts.find((d) => d.id === id);
+    if (!debt || !newName.trim()) return;
+
+    if (isCloudMode) {
+      const client = getSupabaseClient(dbConfig);
+      if (client) {
+        await client.from("thebest_debts").update({ customer_name: newName.trim() }).eq("id", id);
+      }
+    }
+
+    setDebts((prev) =>
+      prev.map((d) => d.id === id ? { ...d, customer_name: newName.trim() } : d)
+    );
+    logAction(`Renomeou cliente fiado de '${debt.customer_name}' para '${newName.trim()}'`);
   };
 
   const clearAuditLog = async () => {
@@ -859,6 +1100,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         fixedCosts,
         sales,
         auditLog,
+        debts,
         currentUser,
         isLoadingData,
         isCloudMode,
@@ -866,6 +1108,12 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         dbError,
         isTestingConfig,
         mounted,
+        isPosActive,
+        setIsPosActive,
+        activeCart,
+        setActiveCart,
+        heldCarts,
+        setHeldCarts,
         login,
         logout,
         addCost,
@@ -883,6 +1131,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         deleteFixedCost,
         registerSale,
         deleteSale,
+        registerDebt,
+        settleDebt,
+        renameDebtCustomer,
         clearAuditLog,
         saveConnection,
         disconnect,

@@ -43,6 +43,7 @@ export default function CustosPage() {
   const [costVal, setCostVal] = useState("");
   const [costBuyer, setCostBuyer] = useState<"gu" | "melhor">("gu");
   const [costPaid, setCostPaid] = useState(false);
+  const [costInstallments, setCostInstallments] = useState("1");
 
   // Calculations
   const totalGeral = costs.reduce((sum, item) => sum + item.amount, 0);
@@ -68,12 +69,13 @@ export default function CustosPage() {
     e.preventDefault();
     if (!costDesc.trim() || !costVal) return;
 
-    const success = await addCost(costDesc, costVal, costBuyer, costPaid);
+    const success = await addCost(costDesc, costVal, costBuyer, costPaid, costInstallments);
     if (success) {
       setCostDesc("");
       setCostVal("");
       setCostBuyer("gu");
       setCostPaid(false);
+      setCostInstallments("1");
       setIsAddingCost(false);
     }
   };
@@ -188,7 +190,16 @@ export default function CustosPage() {
                   <tbody className="divide-y divide-white/5 text-sm">
                     {filteredCosts.map((c) => (
                       <tr key={c.id} className="hover:bg-white/[0.01] transition-colors group">
-                        <td className="px-6 py-4 font-medium text-white/90">{c.description}</td>
+                        <td className="px-6 py-4 font-medium text-white/90">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                            <span>{c.description}</span>
+                            {c.installments_count && c.current_installment && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+                                Parcela {c.current_installment}/{c.installments_count}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-mono tracking-wider uppercase border ${
                             c.buyer === "gu" 
@@ -237,7 +248,14 @@ export default function CustosPage() {
                   <div key={c.id} className="p-5 space-y-4 hover:bg-white/[0.005] transition-colors">
                     <div className="flex justify-between items-start gap-4">
                       <div className="space-y-1">
-                        <h4 className="font-medium text-white text-sm leading-snug">{c.description}</h4>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h4 className="font-medium text-white text-sm leading-snug">{c.description}</h4>
+                          {c.installments_count && c.current_installment && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-mono tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Parcela {c.current_installment}/{c.installments_count}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[10px] font-mono text-white/40 uppercase block">{c.date}</span>
                       </div>
                       <span className="text-base font-mono font-bold text-white whitespace-nowrap">
@@ -352,6 +370,20 @@ export default function CustosPage() {
                       placeholder="0,00"
                       className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider font-semibold block">Número de Parcelas</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      max="72"
+                      value={costInstallments}
+                      onChange={(e) => setCostInstallments(e.target.value)}
+                      placeholder="1 (À vista)"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                    />
+                    <span className="text-[9px] font-mono text-white/30 uppercase block">Defina maior que 1 para despesas parceladas mensais</span>
                   </div>
 
                   <div className="space-y-2">

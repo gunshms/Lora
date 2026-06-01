@@ -31,6 +31,11 @@ export interface IdeaItem {
   date: string;
 }
 
+export interface RecipeIngredient {
+  product_id: string;
+  quantity: number;
+}
+
 export interface StockItem {
   id: string;
   name: string;
@@ -39,6 +44,7 @@ export interface StockItem {
   price_cost?: number;
   price_sell?: number;
   barcode?: string;
+  recipe?: RecipeIngredient[];
 }
 
 export interface FixedCostItem {
@@ -141,7 +147,7 @@ interface AdegaContextType {
   adjustStockQty: (id: string, amount: number) => Promise<void>;
   toggleStockStatus: (id: string) => Promise<void>;
   deleteStock: (id: string) => Promise<void>;
-  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string) => Promise<boolean>;
+  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[]) => Promise<boolean>;
 
   // Fixed Cost actions
   addFixedCost: (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"]) => Promise<boolean>;
@@ -493,6 +499,100 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     return d.toISOString().split("T")[0];
   };
 
+  const deductStockLevels = async (
+    items: { id: string; name: string; quantity: number }[],
+    client: any
+  ) => {
+    let localStock = [...stock];
+
+    for (const item of items) {
+      const currentStockItem = localStock.find(s => s.id === item.id);
+      if (!currentStockItem) continue;
+
+      const hasRecipe = currentStockItem.recipe && currentStockItem.recipe.length > 0;
+      const isSmartCombo = 
+        !hasRecipe && 
+        (item.name.toLowerCase().includes("copão") || 
+         item.name.toLowerCase().includes("copao") || 
+         item.name.toLowerCase().includes("combo") ||
+         item.name.toLowerCase().includes("dose"));
+
+      if (hasRecipe) {
+        for (const ingredient of currentStockItem.recipe!) {
+          const targetItem = localStock.find(s => s.id === ingredient.product_id);
+          if (targetItem) {
+            const nextQty = Math.max(0, targetItem.quantity - (ingredient.quantity * item.quantity));
+            targetItem.quantity = parseFloat(nextQty.toFixed(2));
+            
+            if (client) {
+              await client.from("thebest_stock").update({ quantity: targetItem.quantity }).eq("id", targetItem.id);
+            }
+          }
+        }
+        
+        const nextComboQty = Math.max(0, currentStockItem.quantity - item.quantity);
+        currentStockItem.quantity = parseFloat(nextComboQty.toFixed(2));
+        if (client) {
+          await client.from("thebest_stock").update({ quantity: currentStockItem.quantity }).eq("id", currentStockItem.id);
+        }
+      } else if (isSmartCombo) {
+        const lowerName = item.name.toLowerCase();
+        let mainDrinkBase: StockItem | undefined;
+        let fraction = 0.25;
+
+        if (lowerName.includes("absolut")) {
+          mainDrinkBase = localStock.find(s => s.name.toLowerCase().includes("absolut") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa") && !s.name.toLowerCase().includes("dose"));
+        } else if (lowerName.includes("red label") || lowerName.includes("whisky red")) {
+          mainDrinkBase = localStock.find(s => s.name.toLowerCase().includes("red label") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa") && !s.name.toLowerCase().includes("dose"));
+        } else if (lowerName.includes("smirnoff")) {
+          mainDrinkBase = localStock.find(s => s.name.toLowerCase().includes("smirnoff") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa") && !s.name.toLowerCase().includes("dose"));
+        } else if (lowerName.includes("tanqueray") || lowerName.includes("gin")) {
+          mainDrinkBase = localStock.find(s => s.name.toLowerCase().includes("gin") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa") && !s.name.toLowerCase().includes("dose"));
+        }
+
+        if (mainDrinkBase) {
+          const nextQty = Math.max(0, mainDrinkBase.quantity - (fraction * item.quantity));
+          mainDrinkBase.quantity = parseFloat(nextQty.toFixed(2));
+          if (client) {
+            await client.from("thebest_stock").update({ quantity: mainDrinkBase.quantity }).eq("id", mainDrinkBase.id);
+          }
+        }
+
+        const geloItem = localStock.find(s => s.name.toLowerCase().includes("gelo") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa"));
+        if (geloItem) {
+          const nextQty = Math.max(0, geloItem.quantity - (1 * item.quantity));
+          geloItem.quantity = parseFloat(nextQty.toFixed(2));
+          if (client) {
+            await client.from("thebest_stock").update({ quantity: geloItem.quantity }).eq("id", geloItem.id);
+          }
+        }
+
+        const energeticoItem = localStock.find(s => s.name.toLowerCase().includes("energét") || s.name.toLowerCase().includes("energet") || s.name.toLowerCase().includes("red bull") || s.name.toLowerCase().includes("monster"));
+        if (energeticoItem) {
+          const nextQty = Math.max(0, energeticoItem.quantity - (1 * item.quantity));
+          energeticoItem.quantity = parseFloat(nextQty.toFixed(2));
+          if (client) {
+            await client.from("thebest_stock").update({ quantity: energeticoItem.quantity }).eq("id", energeticoItem.id);
+          }
+        }
+
+        const nextComboQty = Math.max(0, currentStockItem.quantity - item.quantity);
+        currentStockItem.quantity = parseFloat(nextComboQty.toFixed(2));
+        if (client) {
+          await client.from("thebest_stock").update({ quantity: currentStockItem.quantity }).eq("id", currentStockItem.id);
+        }
+      } else {
+        const nextQty = Math.max(0, currentStockItem.quantity - item.quantity);
+        currentStockItem.quantity = parseFloat(nextQty.toFixed(2));
+        if (client) {
+          await client.from("thebest_stock").update({ quantity: currentStockItem.quantity }).eq("id", currentStockItem.id);
+        }
+      }
+    }
+
+    setStock(localStock);
+  };
+
   // Cost Actions
   const addCost = async (
     description: string, 
@@ -767,7 +867,15 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     logAction(`Excluiu produto '${item.name}' do catálogo de estoque`);
   };
 
-  const updateStockPrices = async (id: string, priceCost: string, priceSell: string, barcode?: string): Promise<boolean> => {
+  const updateStockPrices = async (
+    id: string, 
+    priceCost: string, 
+    priceSell: string, 
+    barcode?: string,
+    name?: string,
+    status?: StockItem["status"],
+    recipe?: RecipeIngredient[]
+  ): Promise<boolean> => {
     const item = stock.find((s) => s.id === id);
     if (!item) return false;
 
@@ -776,10 +884,13 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     if (isNaN(parsedCost) || isNaN(parsedSell)) return false;
 
-    const updateFields = {
+    const updateFields: any = {
       price_cost: parsedCost,
       price_sell: parsedSell,
-      barcode: barcode?.trim() || null
+      barcode: barcode?.trim() || null,
+      name: name ? name.trim() : item.name,
+      status: status || item.status,
+      recipe: recipe || null
     };
 
     if (isCloudMode) {
@@ -791,7 +902,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           .eq("id", id);
         
         if (error) {
-          console.error("Erro ao atualizar preços na nuvem:", error.message);
+          console.error("Erro ao atualizar produto na nuvem:", error.message);
           return false;
         }
       }
@@ -804,12 +915,15 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
               ...s,
               price_cost: parsedCost,
               price_sell: parsedSell,
-              barcode: barcode?.trim() || undefined
+              barcode: barcode?.trim() || undefined,
+              name: name ? name.trim() : s.name,
+              status: status || s.status,
+              recipe: recipe || undefined
             }
           : s
       )
     );
-    logAction(`Definiu preços de '${item.name}' para Custo: ${formatCurrency(parsedCost)} e Venda: ${formatCurrency(parsedSell)}`);
+    logAction(`Editou dados do produto '${name ? name.trim() : item.name}' (Custo: ${formatCurrency(parsedCost)}, Venda: ${formatCurrency(parsedSell)})`);
     return true;
   };
 
@@ -910,7 +1024,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       total_amount: parseFloat(totalAmount.toFixed(2)),
       payment_method: paymentMethod,
       profit: parseFloat(profit.toFixed(2)),
-      date: new Date().toISOString(),
+      date: new Date().toISOString()
     };
 
     if (isCloudMode) {
@@ -920,16 +1034,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         if (saleError) {
           console.error("Erro ao registrar venda na nuvem:", saleError.message);
         }
-
-        // Decrement stock for each item
-        for (const item of items) {
-          const currentStockItem = stock.find(s => s.id === item.id);
-          if (currentStockItem) {
-            const nextQty = Math.max(0, currentStockItem.quantity - item.quantity);
-            await client.from("thebest_stock").update({ quantity: nextQty }).eq("id", item.id);
-          }
-        }
+        await deductStockLevels(items, client);
       }
+    } else {
+      await deductStockLevels(items, null);
     }
 
     // Update local stock levels
@@ -1000,28 +1108,11 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error("Erro ao registrar fiado na nuvem:", error.message);
         }
-
-        // Decrement stock levels
-        for (const item of items) {
-          const currentStockItem = stock.find(s => s.id === item.id);
-          if (currentStockItem) {
-            const nextQty = Math.max(0, currentStockItem.quantity - item.quantity);
-            await client.from("thebest_stock").update({ quantity: nextQty }).eq("id", item.id);
-          }
-        }
+        await deductStockLevels(items, client);
       }
+    } else {
+      await deductStockLevels(items, null);
     }
-
-    // Update local stock levels
-    setStock((prev) =>
-      prev.map((s) => {
-        const soldItem = items.find((item) => item.id === s.id);
-        if (soldItem) {
-          return { ...s, quantity: Math.max(0, s.quantity - soldItem.quantity) };
-        }
-        return s;
-      })
-    );
 
     setDebts((prev) => [newDebt, ...prev]);
     logAction(`Registrou fiado pendente para o cliente '${customerName.trim()}' no valor de ${formatCurrency(finalAmount)}`);

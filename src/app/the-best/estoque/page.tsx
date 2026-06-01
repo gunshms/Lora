@@ -14,7 +14,8 @@ import {
   AlertCircle, 
   HelpCircle, 
   X,
-  DollarSign
+  DollarSign,
+  Edit2
 } from "lucide-react";
 import Image from "next/image";
 
@@ -24,10 +25,12 @@ export default function EstoquePage() {
     addStock, 
     adjustStockQty, 
     toggleStockStatus, 
-    deleteStock 
+    deleteStock,
+    updateStockPrices
   } = useAdega();
 
   const [isAddingStock, setIsAddingStock] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   React.useEffect(() => {
@@ -37,13 +40,25 @@ export default function EstoquePage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Form inputs
+  // Form inputs (Adding)
   const [stockName, setStockName] = useState("");
   const [stockQty, setStockQty] = useState(1);
   const [stockStatus, setStockStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
   const [priceCost, setPriceCost] = useState("");
   const [priceSell, setPriceSell] = useState("");
   const [barcode, setBarcode] = useState("");
+
+  // Form inputs (Editing)
+  const [editName, setEditName] = useState("");
+  const [editCost, setEditCost] = useState("");
+  const [editSell, setEditSell] = useState("");
+  const [editBarcode, setEditBarcode] = useState("");
+  const [editStatus, setEditStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
+  
+  // Recipe Composer states
+  const [editRecipe, setEditRecipe] = useState<{ product_id: string; quantity: number }[]>([]);
+  const [selectedIngredientId, setSelectedIngredientId] = useState("");
+  const [ingredientQty, setIngredientQty] = useState("0.25");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +74,62 @@ export default function EstoquePage() {
       setBarcode("");
       setIsAddingStock(false);
     }
+  };
+
+  const handleStartEdit = (item: any) => {
+    setEditingProduct(item);
+    setEditName(item.name);
+    setEditCost(item.price_cost?.toString() || "");
+    setEditSell(item.price_sell?.toString() || "");
+    setEditBarcode(item.barcode || "");
+    setEditStatus(item.status);
+    setEditRecipe(item.recipe || []);
+    setSelectedIngredientId("");
+    setIngredientQty("0.25");
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct || !editName.trim() || !editSell) return;
+
+    const success = await updateStockPrices(
+      editingProduct.id,
+      editCost || "0",
+      editSell,
+      editBarcode,
+      editName,
+      editStatus,
+      editRecipe
+    );
+
+    if (success) {
+      setEditingProduct(null);
+    } else {
+      alert("Erro ao salvar alterações no banco de dados. Certifique-se de executar o script SQL no Supabase.");
+    }
+  };
+
+  const handleAddIngredient = () => {
+    if (!selectedIngredientId) return;
+    const parsedQty = parseFloat(ingredientQty.replace(",", "."));
+    if (isNaN(parsedQty) || parsedQty <= 0) return;
+
+    if (selectedIngredientId === editingProduct?.id) {
+      alert("Um combo não pode conter ele mesmo como ingrediente.");
+      return;
+    }
+
+    if (editRecipe.some(ing => ing.product_id === selectedIngredientId)) {
+      alert("Este ingrediente já faz parte da receita.");
+      return;
+    }
+
+    setEditRecipe(prev => [...prev, { product_id: selectedIngredientId, quantity: parsedQty }]);
+    setSelectedIngredientId("");
+  };
+
+  const handleRemoveIngredient = (prodId: string) => {
+    setEditRecipe(prev => prev.filter(ing => ing.product_id !== prodId));
   };
 
   const statusConfigs = {
@@ -200,14 +271,24 @@ export default function EstoquePage() {
                     </button>
                   </div>
 
-                  {/* Delete button */}
-                  <button 
-                    onClick={() => deleteStock(item.id)}
-                    className="p-1.5 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
-                    title="Excluir item"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {/* Action buttons (Edit & Delete) */}
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => handleStartEdit(item)}
+                      className="p-1.5 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors"
+                      title="Editar dados e preços"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    
+                    <button 
+                      onClick={() => deleteStock(item.id)}
+                      className="p-1.5 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
+                      title="Excluir item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -222,16 +303,16 @@ export default function EstoquePage() {
         </div>
       )}
 
-      {/* Add Stock Sidebar Drawer */}
+      {/* Edit Stock Sidebar Drawer (Including Recipe/Combo Composer) */}
       <AnimatePresence>
-        {isAddingStock && (
+        {editingProduct && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsAddingStock(false)}
+              onClick={() => setEditingProduct(null)}
               className="absolute inset-0"
             />
             {/* Drawer */}
@@ -240,36 +321,36 @@ export default function EstoquePage() {
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between ${
+              className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between overflow-y-auto ${
                 isMobile 
-                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10" 
+                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10" 
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
                   <div className="flex items-center gap-2">
-                    <ShoppingBag className="w-5 h-5 text-white/80" />
-                    <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">ADICIONAR ITEM</h3>
+                    <Edit2 className="w-5 h-5 text-emerald-400" />
+                    <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">EDITAR PRODUTO</h3>
                   </div>
                   <button 
-                    onClick={() => setIsAddingStock(false)}
+                    onClick={() => setEditingProduct(null)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleEditSubmit} className="space-y-5">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome da Bebida / Produto</label>
                     <input 
                       type="text" 
                       required
-                      value={stockName}
-                      onChange={(e) => setStockName(e.target.value)}
-                      placeholder="Ex: Cerveja Skol Litrão, Vodka Smirnoff, Carvão 5kg"
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Nome da bebida..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
                     />
                   </div>
 
@@ -278,10 +359,10 @@ export default function EstoquePage() {
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Custo (R$)</label>
                       <input 
                         type="text" 
-                        value={priceCost}
-                        onChange={(e) => setPriceCost(e.target.value)}
+                        value={editCost}
+                        onChange={(e) => setEditCost(e.target.value)}
                         placeholder="0,00"
-                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
                       />
                     </div>
 
@@ -289,55 +370,28 @@ export default function EstoquePage() {
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
                       <input 
                         type="text" 
-                        value={priceSell}
-                        onChange={(e) => setPriceSell(e.target.value)}
+                        required
+                        value={editSell}
+                        onChange={(e) => setEditSell(e.target.value)}
                         placeholder="0,00"
-                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras (Opcional)</label>
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras</label>
                     <input 
                       type="text" 
-                      value={barcode}
-                      onChange={(e) => setBarcode(e.target.value)}
-                      placeholder="789..."
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                      value={editBarcode}
+                      onChange={(e) => setEditBarcode(e.target.value)}
+                      placeholder="Código de barras..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Quantidade Inicial</label>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        type="button"
-                        onClick={() => setStockQty(prev => Math.max(1, prev - 1))}
-                        className="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-white/70"
-                      >
-                        <MinusCircle className="w-5 h-5" />
-                      </button>
-                      <input 
-                        type="number" 
-                        required
-                        min="1"
-                        value={stockQty}
-                        onChange={(e) => setStockQty(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-20 px-3 py-1.5 bg-black/40 border border-white/10 rounded text-center text-white text-sm font-mono focus:outline-none"
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => setStockQty(prev => prev + 1)}
-                        className="p-1.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 text-white/70"
-                      >
-                        <PlusCircle className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Status de Compra / Estoque</label>
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Status do Estoque</label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { id: "urgent", label: "Urgente" },
@@ -347,9 +401,9 @@ export default function EstoquePage() {
                         <button 
                           key={statusOption.id}
                           type="button"
-                          onClick={() => setStockStatus(statusOption.id as any)}
+                          onClick={() => setEditStatus(statusOption.id as any)}
                           className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
-                            stockStatus === statusOption.id 
+                            editStatus === statusOption.id 
                               ? statusOption.id === "urgent" 
                                 ? "bg-rose-500/10 text-rose-400 border-rose-500/30" 
                                 : statusOption.id === "planned" 
@@ -364,19 +418,88 @@ export default function EstoquePage() {
                     </div>
                   </div>
 
+                  {/* CUSTOM RECIPE / COMBO COMPOSER SECTION */}
+                  <div className="border-t border-white/5 pt-5 space-y-4">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-headline font-bold text-white uppercase tracking-wider">Composição de Combo / Receita</h4>
+                      <p className="text-[10px] font-mono text-white/35 uppercase">Deduza doses ou gelo automaticamente ao vender copões</p>
+                    </div>
+
+                    {/* Linked ingredients list */}
+                    {editRecipe.length > 0 ? (
+                      <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                        {editRecipe.map((ing) => {
+                          const matchingItem = stock.find(s => s.id === ing.product_id);
+                          return (
+                            <div key={ing.product_id} className="flex justify-between items-center bg-black/40 border border-white/5 p-2 rounded-lg text-[11px]">
+                              <div className="space-y-0.5 min-w-0">
+                                <span className="font-semibold text-white/90 truncate block">{matchingItem?.name || "Produto Excluído"}</span>
+                                <span className="font-mono text-white/40 block">Dedução: {ing.quantity} (ex: {ing.quantity === 0.25 ? "1/4 garrafa" : `${ing.quantity} unid`})</span>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => handleRemoveIngredient(ing.product_id)}
+                                className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 bg-black/20 border border-dashed border-white/5 rounded-lg text-[10px] font-mono uppercase text-white/30">
+                        Nenhum ingrediente vinculado a este combo.
+                      </div>
+                    )}
+
+                    {/* Add ingredient controls */}
+                    <div className="bg-black/30 border border-white/5 p-3 rounded-xl space-y-3">
+                      <span className="text-[9px] font-mono uppercase text-white/40 tracking-wider block">Vincular Novo Ingrediente</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={selectedIngredientId}
+                          onChange={(e) => setSelectedIngredientId(e.target.value)}
+                          className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                        >
+                          <option value="">Selecione...</option>
+                          {stock.filter(s => s.id !== editingProduct.id).map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+
+                        <input 
+                          type="text"
+                          value={ingredientQty}
+                          onChange={(e) => setIngredientQty(e.target.value)}
+                          placeholder="Dose (ex: 0.25)"
+                          className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-xs text-white text-center font-mono focus:outline-none placeholder-white/20"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!selectedIngredientId}
+                        onClick={handleAddIngredient}
+                        className="w-full py-1.5 bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 text-[10px] uppercase font-bold font-mono tracking-wider rounded-lg transition-colors"
+                      >
+                        Vincular Ingrediente
+                      </button>
+                    </div>
+                  </div>
+
                   <button 
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >
-                    Salvar no Estoque
+                    Salvar Alterações
                   </button>
                 </form>
               </div>
 
-              <div className="p-4 bg-white/[0.01] border border-white/5 rounded-lg flex items-start gap-2.5">
+              <div className="p-4 bg-white/[0.01] border border-white/5 rounded-lg flex items-start gap-2.5 mt-6">
                 <AlertCircle className="w-4 h-4 text-white/40 flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase">
-                  Preços definidos no estoque ficam automaticamente prontos para finalização rápida no caixa (PDV).
+                  O estoque se ajustará fracionariamente com base na receita ao fechar vendas de combos na frente de caixa.
                 </p>
               </div>
             </motion.div>

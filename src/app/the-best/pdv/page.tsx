@@ -212,6 +212,8 @@ export default function PdvPage() {
       };
       addToCart(updatedProduct);
       setAdjustingProduct(null);
+    } else {
+      alert("Erro ao salvar preços no banco de dados. Certifique-se de executar o script SQL de atualização do Supabase.");
     }
   };
 
@@ -377,6 +379,35 @@ export default function PdvPage() {
               >
                 <X className="w-4 h-4" />
               </button>
+            )}
+
+            {/* Floating autocomplete suggestion dropdown list */}
+            {searchTerm && filteredProducts.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-2 bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto">
+                <div className="p-2 border-b border-white/5 text-[9px] font-mono text-white/30 uppercase tracking-widest bg-white/[0.005]">
+                  Sugestões de Pesquisa (Clique para Adicionar)
+                </div>
+                <div className="divide-y divide-white/5">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => {
+                        addToCart(product);
+                        setSearchTerm(""); // Auto-clear search bar on selection to make it fast!
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 text-left transition-all"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-white">{product.name}</span>
+                        <span className="text-[10px] font-mono text-white/40 block">Estoque: {product.quantity}</span>
+                      </div>
+                      <span className="font-mono text-xs font-bold text-emerald-400">
+                        {product.price_sell ? formatCurrency(product.price_sell) : "Precificar"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 

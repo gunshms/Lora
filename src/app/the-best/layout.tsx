@@ -17,7 +17,12 @@ import {
   CloudOff,
   Copy,
   HelpCircle,
-  CalendarDays
+  CalendarDays,
+  ShoppingBag,
+  Receipt,
+  User,
+  Lock,
+  ShieldAlert
 } from "lucide-react";
 import Image from "next/image";
 
@@ -43,16 +48,17 @@ function ConnectionBadge() {
   );
 }
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent({ onClose, onOpenAudit }: { onClose?: () => void; onOpenAudit?: () => void }) {
   const pathname = usePathname();
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const { dbConfig, saveConnection, disconnect, isTestingConfig, dbError } = useAdega();
+  const { dbConfig, saveConnection, disconnect, isTestingConfig, dbError, currentUser, logout } = useAdega();
   const [inputUrl, setInputUrl] = useState(dbConfig?.url || "");
   const [inputKey, setInputKey] = useState(dbConfig?.anonKey || "");
   const [showSqlHelp, setShowSqlHelp] = useState(false);
 
   const menuItems = [
     { href: "/the-best", label: "Visão Geral", icon: TrendingUp },
+    { href: "/the-best/vendas", label: "Relatório de Vendas", icon: Receipt },
     { href: "/the-best/custos", label: "Custos & Rateio", icon: DollarSign },
     { href: "/the-best/fixas", label: "Contas Fixas", icon: CalendarDays },
     { href: "/the-best/estoque", label: "Estoque & Compras", icon: Wine },
@@ -92,7 +98,10 @@ create table thebest_stock (
   id text primary key,
   name text not null,
   quantity integer not null,
-  status text not null
+  status text not null,
+  price_cost numeric default 0,
+  price_sell numeric default 0,
+  barcode text
 );
 
 -- 4. Tabela de Contas Fixas
@@ -103,6 +112,24 @@ create table thebest_fixed (
   "dueDay" integer not null,
   "paidThisMonth" boolean default false,
   assignee text not null
+);
+
+-- 5. Tabela de Vendas
+create table thebest_sales (
+  id text primary key,
+  items jsonb not null,
+  total_amount numeric not null,
+  payment_method text not null,
+  profit numeric not null,
+  date timestamp default current_timestamp
+);
+
+-- 6. Tabela de Auditoria
+create table thebest_audit (
+  id text primary key,
+  "user" text not null,
+  action text not null,
+  date timestamp default current_timestamp
 );`;
 
   return (
@@ -112,7 +139,6 @@ create table thebest_fixed (
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="relative group w-12 h-12 flex-shrink-0">
-              {/* Spinning/rotating border ornament */}
               <div className="absolute inset-0 rounded-full border border-dashed border-white/10 group-hover:border-white/30 animate-[spin_40s_linear_infinite]" />
               <div className="absolute inset-0.5 rounded-full overflow-hidden bg-black flex items-center justify-center">
                 <Image 
@@ -142,7 +168,34 @@ create table thebest_fixed (
         </div>
 
         {/* Navigation List */}
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-2.5">
+          {/* Main Action: Frente de Caixa (PDV) - Prominent highlighted primary button */}
+          <Link
+            href="/the-best/pdv"
+            onClick={onClose}
+            className={`relative flex items-center justify-between px-4 py-3.5 rounded-lg text-sm transition-all duration-300 border group overflow-hidden ${
+              pathname === "/the-best/pdv"
+                ? "bg-white text-black border-white font-bold shadow-lg shadow-white/5"
+                : "bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 text-emerald-400 font-semibold"
+            }`}
+          >
+            <div className="flex items-center gap-3 relative z-10">
+              <ShoppingBag className={`w-4 h-4 transition-colors duration-300 ${
+                pathname === "/the-best/pdv" ? "text-black" : "text-emerald-400 group-hover:text-emerald-300"
+              }`} />
+              <span className="font-headline tracking-widest uppercase text-xs">Frente de Caixa (PDV)</span>
+            </div>
+            
+            {pathname !== "/the-best/pdv" && (
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            )}
+          </Link>
+
+          <div className="h-[1px] bg-white/5 my-1" />
+
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -175,6 +228,25 @@ create table thebest_fixed (
 
       {/* Footer Section */}
       <div className="flex flex-col gap-4 mt-auto">
+        {/* User Session Info */}
+        {currentUser && (
+          <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-white/[0.02] border border-white/5 text-xs text-white/70">
+            <span className="font-mono text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-white/40" />
+              {currentUser}
+            </span>
+            <button 
+              onClick={() => {
+                logout();
+                if (onClose) onClose();
+              }}
+              className="text-[9px] font-mono uppercase tracking-wider text-rose-400 hover:text-rose-300 font-bold transition-colors"
+            >
+              Sair
+            </button>
+          </div>
+        )}
+
         <ConnectionBadge />
         
         <div className="flex items-center justify-between pt-4 border-t border-white/5">
@@ -186,7 +258,14 @@ create table thebest_fixed (
             Configurar BD
           </button>
           
-          <span className="text-[10px] font-mono text-white/20 tracking-wider">v2026.06</span>
+          {/* Secret/Hidden Audit Log Button */}
+          <button 
+            onClick={onOpenAudit}
+            className="text-[10px] font-mono text-white/20 hover:text-white/40 tracking-wider transition-colors cursor-pointer select-none"
+            title="Registro Secreto"
+          >
+            v2026.06
+          </button>
         </div>
       </div>
 
@@ -344,11 +423,124 @@ function PageLoadingSkeleton() {
 }
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
-  const { mounted } = useAdega();
+  const { mounted, currentUser, login, logout, auditLog, clearAuditLog } = useAdega();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showAuditDrawer, setShowAuditDrawer] = useState(false);
+
+  // Login Form States
+  const [selectedUser, setSelectedUser] = useState<"Oliveira" | "Marques">("Oliveira");
+  const [pinInput, setPinInput] = useState("");
+  const [loginError, setLoginError] = useState(false);
 
   if (!mounted) {
     return <PageLoadingSkeleton />;
+  }
+
+  // Gatekeeper: If no active user session, block dashboard and display login portal
+  if (!currentUser) {
+    const handleLoginSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const success = login(selectedUser, pinInput);
+      if (!success) {
+        setLoginError(true);
+        setPinInput("");
+        setTimeout(() => setLoginError(false), 2000);
+      }
+    };
+
+    return (
+      <main className="w-full min-h-screen bg-[#050505] text-[#F2F0E9] flex flex-col justify-center items-center p-6 selection:bg-white selection:text-black">
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-radial-gradient from-white/[0.01] to-transparent pointer-events-none rounded-full blur-3xl" />
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm bg-[#0b0b0d] border border-white/10 rounded-2xl p-8 flex flex-col gap-6 shadow-2xl relative"
+        >
+          {/* Logo Crest */}
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-[spin_30s_linear_infinite]" />
+              <Image 
+                src="/adega/crest_white.png" 
+                alt="The Best Crest" 
+                width={48} 
+                height={48} 
+                className="object-contain invert opacity-80"
+              />
+            </div>
+            <div>
+              <h2 className="text-xl font-headline font-black tracking-widest text-white uppercase">THE BEST</h2>
+              <span className="text-[10px] tracking-[0.2em] text-white/30 font-mono uppercase block mt-0.5">Portal de Acesso</span>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleLoginSubmit} className="space-y-5">
+            {/* User Selection */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono uppercase text-white/50 tracking-wider block">Selecione o Operador</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setSelectedUser("Oliveira")}
+                  className={`py-2.5 rounded-xl text-xs font-mono uppercase border transition-all duration-300 font-semibold ${
+                    selectedUser === "Oliveira" 
+                      ? "bg-white text-black border-white shadow-lg" 
+                      : "bg-black/40 border-white/5 text-white/40 hover:text-white/60"
+                  }`}
+                >
+                  Oliveira
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setSelectedUser("Marques")}
+                  className={`py-2.5 rounded-xl text-xs font-mono uppercase border transition-all duration-300 font-semibold ${
+                    selectedUser === "Marques" 
+                      ? "bg-white text-black border-white shadow-lg" 
+                      : "bg-black/40 border-white/5 text-white/40 hover:text-white/60"
+                  }`}
+                >
+                  Marques
+                </button>
+              </div>
+            </div>
+
+            {/* PIN Passcode Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-mono uppercase text-white/50 tracking-wider block">Código PIN / Senha</label>
+              <input 
+                type="password" 
+                required
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="••••"
+                className={`w-full px-4 py-3 bg-black/60 border rounded-xl text-center text-lg font-mono tracking-[0.5em] focus:outline-none transition-all ${
+                  loginError 
+                    ? "border-rose-500 text-rose-400 bg-rose-950/10" 
+                    : "border-white/10 focus:border-white/30 text-white placeholder-white/20"
+                }`}
+              />
+            </div>
+
+            {/* Submit */}
+            <button 
+              type="submit"
+              className="w-full py-3 bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase hover:bg-white/90 transition-all shadow-lg"
+            >
+              Autenticar
+            </button>
+          </form>
+
+          {/* Footer info */}
+          <div className="text-center text-[9px] font-mono text-white/20 uppercase tracking-widest mt-2 border-t border-white/5 pt-4">
+            Adega & Conveniência The Best
+          </div>
+        </motion.div>
+      </main>
+    );
   }
 
   return (
@@ -401,7 +593,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative w-80 max-w-[85vw] h-full"
             >
-              <SidebarContent onClose={() => setMobileMenuOpen(false)} />
+              <SidebarContent 
+                onClose={() => setMobileMenuOpen(false)} 
+                onOpenAudit={() => {
+                  setMobileMenuOpen(false);
+                  setShowAuditDrawer(true);
+                }} 
+              />
             </motion.div>
           </div>
         )}
@@ -409,12 +607,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* Desktop Sidebar (Fixed Left Side) */}
       <aside className="hidden lg:block w-72 h-screen sticky top-0 flex-shrink-0">
-        <SidebarContent />
+        <SidebarContent onOpenAudit={() => setShowAuditDrawer(true)} />
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 w-full lg:max-h-screen lg:overflow-y-auto min-h-[calc(100vh-69px)] lg:min-h-screen relative p-6 lg:p-10 flex flex-col justify-start">
-        {/* Subtle Decorative Oriental Backdrop Overlay */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-radial-gradient from-white/[0.015] to-transparent pointer-events-none -z-10 rounded-full blur-3xl" />
         
         {/* Animated Page Wrap */}
@@ -427,6 +624,84 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           {children}
         </motion.div>
       </main>
+
+      {/* Secret Audit Trail Drawer */}
+      <AnimatePresence>
+        {showAuditDrawer && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAuditDrawer(false)}
+              className="absolute inset-0"
+            />
+            {/* Drawer */}
+            <motion.div 
+              initial={{ translateX: "100%" }}
+              animate={{ translateX: 0 }}
+              exit={{ translateX: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className="relative w-full max-w-md h-full bg-[#0e0e10] border-l border-white/10 p-6 flex flex-col z-10 shadow-2xl justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-5 h-5 text-amber-500" />
+                    <h3 className="font-headline font-bold text-base tracking-wider text-white uppercase">Logs de Auditoria</h3>
+                  </div>
+                  <button 
+                    onClick={() => setShowAuditDrawer(false)}
+                    className="p-1 rounded text-white/40 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Audit Logs list */}
+                {auditLog.length > 0 ? (
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                    {auditLog.map((log) => (
+                      <div 
+                        key={log.id}
+                        className="p-3 bg-white/[0.01] border border-white/5 rounded-lg space-y-1.5"
+                      >
+                        <div className="flex justify-between items-center text-[9px] font-mono text-white/35 uppercase">
+                          <span className="text-white font-bold">👤 {log.user}</span>
+                          <span>{new Date(log.date).toLocaleDateString("pt-BR")} {new Date(log.date).toLocaleTimeString("pt-BR")}</span>
+                        </div>
+                        <p className="text-xs text-white/80 leading-relaxed font-sans">{log.action}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-xs text-white/30 font-mono uppercase bg-white/[0.005] border border-dashed border-white/5 rounded-lg">
+                    Nenhum registro de atividade encontrado.
+                  </div>
+                )}
+              </div>
+
+              {/* Clear Log option */}
+              {auditLog.length > 0 && (
+                <div className="pt-4 border-t border-white/5 mt-auto">
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Deseja limpar permanentemente todos os registros de auditoria?")) {
+                        clearAuditLog();
+                      }
+                    }}
+                    className="w-full py-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-450 border border-red-500/10 rounded-xl text-xs font-mono uppercase font-bold transition-all"
+                  >
+                    Limpar Logs de Auditoria
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

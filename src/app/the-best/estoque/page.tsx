@@ -13,7 +13,8 @@ import {
   ShoppingBag, 
   AlertCircle, 
   HelpCircle, 
-  X
+  X,
+  DollarSign
 } from "lucide-react";
 import Image from "next/image";
 
@@ -40,16 +41,22 @@ export default function EstoquePage() {
   const [stockName, setStockName] = useState("");
   const [stockQty, setStockQty] = useState(1);
   const [stockStatus, setStockStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
+  const [priceCost, setPriceCost] = useState("");
+  const [priceSell, setPriceSell] = useState("");
+  const [barcode, setBarcode] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stockName.trim() || stockQty <= 0) return;
 
-    const success = await addStock(stockName, stockQty, stockStatus);
+    const success = await addStock(stockName, stockQty, stockStatus, priceCost, priceSell, barcode);
     if (success) {
       setStockName("");
       setStockQty(1);
       setStockStatus("planned");
+      setPriceCost("");
+      setPriceSell("");
+      setBarcode("");
       setIsAddingStock(false);
     }
   };
@@ -67,6 +74,14 @@ export default function EstoquePage() {
       label: "Em Estoque",
       styles: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-550/20",
     },
+  };
+
+  const formatCurrency = (value?: number) => {
+    if (!value) return "R$ 0,00";
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
   };
 
   return (
@@ -94,7 +109,7 @@ export default function EstoquePage() {
       <div className="p-4 bg-white/[0.01] border border-white/5 rounded-lg flex items-center justify-between flex-wrap gap-4 text-xs">
         <div className="flex items-center gap-2.5 text-white/60 font-mono uppercase">
           <HelpCircle className="w-4 h-4 text-white/40" />
-          Dica: Clique no badge de status para alternar entre "Urgente", "Planejado" e "Em Estoque".
+          Dica: Defina os preços de custo e venda dos itens para que eles fiquem prontos no PDV.
         </div>
 
         <div className="flex gap-4 font-mono text-[10px] uppercase text-white/40">
@@ -112,7 +127,7 @@ export default function EstoquePage() {
             return (
               <div 
                 key={item.id} 
-                className="bg-[#0b0b0d] border border-white/5 rounded-xl p-6 relative overflow-hidden group flex flex-col justify-between min-h-[160px] hover:border-white/10 transition-all duration-300"
+                className="bg-[#0b0b0d] border border-white/5 rounded-xl p-6 relative overflow-hidden group flex flex-col justify-between min-h-[190px] hover:border-white/10 transition-all duration-300"
               >
                 {/* Decorative Wave Background Watermark */}
                 <div className="absolute right-[-10px] bottom-[-10px] w-24 h-24 opacity-[0.02] pointer-events-none group-hover:scale-110 group-hover:rotate-3 transition-all duration-700 select-none">
@@ -126,27 +141,41 @@ export default function EstoquePage() {
                 </div>
 
                 {/* Card Top: Title & Status */}
-                <div className="flex items-start justify-between gap-4 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-white/[0.02] border border-white/5 text-amber-400">
-                      <Beer className="w-5 h-5" />
+                <div className="space-y-4 relative z-10 flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded bg-white/[0.02] border border-white/5 text-amber-400">
+                        <Beer className="w-5 h-5" />
+                      </div>
+                      <span className="font-semibold text-base text-white/95 leading-tight tracking-wide group-hover:text-white transition-colors">
+                        {item.name}
+                      </span>
                     </div>
-                    <span className="font-semibold text-base text-white/95 leading-tight tracking-wide group-hover:text-white transition-colors">
-                      {item.name}
-                    </span>
+
+                    <button 
+                      onClick={() => toggleStockStatus(item.id)}
+                      className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded border font-semibold transition-all duration-300 ${config.styles}`}
+                      title="Clique para mudar status"
+                    >
+                      {config.label}
+                    </button>
                   </div>
 
-                  <button 
-                    onClick={() => toggleStockStatus(item.id)}
-                    className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded border font-semibold transition-all duration-300 ${config.styles}`}
-                    title="Clique para mudar status"
-                  >
-                    {config.label}
-                  </button>
+                  {/* Pricing info */}
+                  <div className="grid grid-cols-2 gap-4 py-2 border-t border-b border-white/5 text-[11px] font-mono uppercase text-white/40">
+                    <div>
+                      <span>Preço Custo</span>
+                      <span className="block text-white font-bold mt-0.5">{formatCurrency(item.price_cost)}</span>
+                    </div>
+                    <div>
+                      <span>Preço Venda</span>
+                      <span className="block text-emerald-400 font-bold mt-0.5">{formatCurrency(item.price_sell)}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Card Bottom: Quantity adjustments & delete */}
-                <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-6 relative z-10">
+                <div className="flex items-center justify-between pt-4 mt-4 relative z-10">
                   
                   {/* Quantity controls */}
                   <div className="flex items-center gap-3">
@@ -244,6 +273,41 @@ export default function EstoquePage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Custo (R$)</label>
+                      <input 
+                        type="text" 
+                        value={priceCost}
+                        onChange={(e) => setPriceCost(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
+                      <input 
+                        type="text" 
+                        value={priceSell}
+                        onChange={(e) => setPriceSell(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras (Opcional)</label>
+                    <input 
+                      type="text" 
+                      value={barcode}
+                      onChange={(e) => setBarcode(e.target.value)}
+                      placeholder="789..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm font-mono"
+                    />
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Quantidade Inicial</label>
                     <div className="flex items-center gap-3">
@@ -312,7 +376,7 @@ export default function EstoquePage() {
               <div className="p-4 bg-white/[0.01] border border-white/5 rounded-lg flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 text-white/40 flex-shrink-0 mt-0.5" />
                 <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase">
-                  Itens marcados como "Urgente" geram alertas automáticos de notificação na tela inicial para acelerar a reposição.
+                  Preços definidos no estoque ficam automaticamente prontos para finalização rápida no caixa (PDV).
                 </p>
               </div>
             </motion.div>

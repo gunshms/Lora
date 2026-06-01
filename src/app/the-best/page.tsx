@@ -122,15 +122,12 @@ export default function AdegaTheBest() {
       }
     }
 
-    if (activeConfig) {
-      initializeCloudData(activeConfig);
-    } else {
-      setMounted(true);
-    }
+    // Always attempt to load cloud data on mount (will fallback to default hardcoded credentials)
+    initializeCloudData(activeConfig);
   }, []);
 
   // Fetch all tables from Supabase strictly
-  const initializeCloudData = async (config: SupabaseConfig) => {
+  const initializeCloudData = async (config: SupabaseConfig | null) => {
     setIsLoadingData(true);
     setDbError(null);
     const client = getSupabaseClient(config);

@@ -2,6 +2,10 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let supabaseInstance: SupabaseClient | null = null;
 
+// Public client credentials are safe to expose in client-side bundles (this is the Supabase anon key)
+const DEFAULT_URL = "https://kqfzxejypkgvqwtdfpge.supabase.co";
+const DEFAULT_KEY = "sb_publishable_sbknzYwccISEVGsYEK_TAA_Ad3g2G3p";
+
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
@@ -9,13 +13,12 @@ export interface SupabaseConfig {
 
 /**
  * Initializes and returns the Supabase client.
- * Supports environment variables or dynamically provided UI configurations.
+ * Uses hardcoded defaults to ensure zero-setup on production deploys like Netlify/Vercel.
  */
 export function getSupabaseClient(customConfig?: SupabaseConfig | null): SupabaseClient | null {
-  // 1. If custom configuration is provided directly (from UI settings), initialize a new client
+  // 1. If custom configuration is provided (from settings if overridden)
   if (customConfig && customConfig.url && customConfig.anonKey) {
     try {
-      // Basic sanitization
       const cleanUrl = customConfig.url.trim();
       const cleanKey = customConfig.anonKey.trim();
       
@@ -36,7 +39,7 @@ export function getSupabaseClient(customConfig?: SupabaseConfig | null): Supabas
     return supabaseInstance;
   }
 
-  // 3. Fallback to process.env environment variables
+  // 3. Fallback to environment variables if available
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -47,10 +50,18 @@ export function getSupabaseClient(customConfig?: SupabaseConfig | null): Supabas
       });
       return supabaseInstance;
     } catch (error) {
-      console.error("Erro ao criar cliente Supabase com variáveis de ambiente:", error);
-      return null;
+      console.error("Erro ao criar cliente Supabase com vars:", error);
     }
   }
 
-  return null;
+  // 4. Ultimate fallback to hardcoded default credentials (ensures zero-setup online)
+  try {
+    supabaseInstance = createClient(DEFAULT_URL, DEFAULT_KEY, {
+      auth: { persistSession: false },
+    });
+    return supabaseInstance;
+  } catch (error) {
+    console.error("Erro ao criar cliente Supabase padrão:", error);
+    return null;
+  }
 }

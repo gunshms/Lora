@@ -29,7 +29,7 @@ export default function ServiceCard({ title, description, cover, progress, index
             {/* Background Image */}
             <div className="absolute inset-0 w-full h-full">
                 {cover ? (
-                    <Image src={cover} alt={title} fill className="object-cover transform hover:scale-105 transition-transform duration-700" />
+                    <Image src={cover} alt={title} fill className="object-cover transform hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 400px" quality={85} />
                 ) : (
                     <div className="w-full h-full bg-neutral-900" />
                 )}

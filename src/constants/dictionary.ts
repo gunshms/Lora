@@ -15,7 +15,7 @@ export const dictionary = {
                     title: "Gerente de Conteúdo",
                     description: "Estratégia editorial completa: Edição, programação e roteiro.",
                     details: "Gerenciamos seu canal de ponta a ponta. Focamos na retenção (Watchtime) e no crescimento orgânico, garantindo que seu conteúdo não seja apenas visto, mas lembrado.",
-                    cover: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop", // Social Media/Content
+                    cover: "/images/service_1.png", // Social Media/Content
                     features: [
                         "Programação de Postagens (Youtube, Insta, TikTok)",
                         "Roteirização focada em retenção (Hooks Virais)",
@@ -28,7 +28,7 @@ export const dictionary = {
                     title: "Conteúdo de Marca",
                     description: "Criação de identidade visual e storytelling imersivo.",
                     details: "Desenvolvemos a cara da sua marca no digital. Não é apenas logo, é um ecossistema visual que comunica autoridade, inovação e o estilo 'High-End' que você procura.",
-                    cover: "https://images.unsplash.com/photo-1493612276216-9c5901955d43?q=80&w=600&auto=format&fit=crop", // Brand/Minimalist
+                    cover: "/images/service_2.png", // Brand/Minimalist
                     features: [
                         "Identidade Visual Completa (Logo, Cores, Tipografia)",
                         "Manual de Marca (Brandbook)",
@@ -41,7 +41,7 @@ export const dictionary = {
                     title: "Direção Criativa",
                     description: "Conceito, Motion Design e visão artística unificada.",
                     details: "A alma do projeto. Definimos a direção de arte e o conceito geral. Utilizamos Motion Design e referências cinematográficas para elevar o nível da produção.",
-                    cover: "https://images.unsplash.com/photo-1558655146-d09347e92766?q=80&w=600&auto=format&fit=crop", // Art/Creative
+                    cover: "/images/service_3.png", // Art/Creative
                     features: [
                         "Supervisão Artística de Projetos",
                         "Motion Design Avançado (2D/3D)",
@@ -54,7 +54,7 @@ export const dictionary = {
                     title: "Edição de Vídeo",
                     description: "Cortes de alta retenção. Portfolio: MasterCity, Newcastle.",
                     details: "Edição dinâmica focada em watchtime. Já trabalhamos com gigantes como MasterCity e Newcastle, entregando cortes que prendem a atenção do primeiro ao último segundo.",
-                    cover: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44c?q=80&w=600&auto=format&fit=crop", // Editing Timeline
+                    cover: "/images/service_4.png", // Editing Timeline
                     features: [
                         "Edição de Vídeos Longos (Vlogs, Documentários)",
                         "Cortes para Reels/TikTok (Short-form)",
@@ -67,7 +67,7 @@ export const dictionary = {
                     title: "Mentoria",
                     description: "Te ensinamos a ser um editor e criador melhor.",
                     details: "Acelere sua curva de aprendizado. Compartilhamos nossos processos, técnicas de edição no Premiere/After Effects e os segredos de viralização que usamos na Lora Studio.",
-                    cover: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=600&auto=format&fit=crop", // Classroom/Learning
+                    cover: "/images/service_5.png", // Classroom/Learning
                     features: [
                         "Aula 1:1 com nossos Experts",
                         "Análise de Canal e Portfolio",
@@ -139,7 +139,7 @@ export const dictionary = {
                     title: "Content Manager",
                     description: "Full editorial strategy: Editing, scheduling, and scripting.",
                     details: "We manage your channel end-to-end. We focus on retention (Watchtime) and organic growth, ensuring your content is not just seen, but remembered.",
-                    cover: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=600&auto=format&fit=crop", // Social Media/Content
+                    cover: "/images/service_1.png", // Social Media/Content
                     features: [
                         "Post Scheduling (Youtube, Insta, TikTok)",
                         "Retention-Focused Scripting (Viral Hooks)",
@@ -152,7 +152,7 @@ export const dictionary = {
                     title: "Branded Content",
                     description: "Visual identity creation and immersive storytelling.",
                     details: "We develop your brand's digital face. Not just a logo, but a visual ecosystem that communicates authority, innovation, and the 'High-End' style you seek.",
-                    cover: "https://images.unsplash.com/photo-1493612276216-9c5901955d43?q=80&w=600&auto=format&fit=crop", // Brand/Minimalist
+                    cover: "/images/service_2.png", // Brand/Minimalist
                     features: [
                         "Full Visual Identity (Logo, Colors, Typography)",
                         "Brandbook",
@@ -165,7 +165,7 @@ export const dictionary = {
                     title: "Creative Direction",
                     description: "Concept, Motion Design, and unified artistic vision.",
                     details: "The soul of the project. We define art direction and the general concept. We use Advanced Motion Design and cinematic references to elevate production quality.",
-                    cover: "https://images.unsplash.com/photo-1558655146-d09347e92766?q=80&w=600&auto=format&fit=crop", // Art/Creative
+                    cover: "/images/service_3.png", // Art/Creative
                     features: [
                         "Artistic Project Supervision",
                         "Advanced Motion Design (2D/3D)",
@@ -178,7 +178,7 @@ export const dictionary = {
                     title: "Video Editing",
                     description: "High-retention cuts. Portfolio: MasterCity, Newcastle.",
                     details: "Dynamic editing focused on watch time. Worked with giants like MasterCity and Newcastle, delivering cuts that hold attention from the first to the last second.",
-                    cover: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44c?q=80&w=600&auto=format&fit=crop", // Editing Timeline
+                    cover: "/images/service_4.png", // Editing Timeline
                     features: [
                         "Long-form Video Editing (Vlogs, Docs)",
                         "Short-form Cuts (Reels/TikTok)",
@@ -191,7 +191,7 @@ export const dictionary = {
                     title: "Mentorship",
                     description: "We help you become a better editor and creator.",
                     details: "Accelerate your learning curve. We share our processes, Premiere/After Effects techniques, and the viralization secrets we use at Lora Studio.",
-                    cover: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=600&auto=format&fit=crop", // Classroom/Learning
+                    cover: "/images/service_5.png", // Classroom/Learning
                     features: [
                         "1:1 Session with our Experts",
                         "Channel & Portfolio Analysis",

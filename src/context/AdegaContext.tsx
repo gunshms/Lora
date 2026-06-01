@@ -20,6 +20,7 @@ export interface CostItem {
   installments_count?: number;
   current_installment?: number;
   installment_parent_id?: string;
+  receipt?: string;
 }
 
 export interface IdeaItem {
@@ -54,6 +55,7 @@ export interface FixedCostItem {
   dueDay: number;
   paidThisMonth: boolean;
   assignee: "gu" | "melhor" | "ambos";
+  receipt?: string;
 }
 
 export interface SaleItem {
@@ -134,7 +136,7 @@ interface AdegaContextType {
   logout: () => void;
 
   // Cost actions
-  addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean, installmentsCount?: string) => Promise<boolean>;
+  addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean, installmentsCount?: string, receipt?: string) => Promise<boolean>;
   toggleCostPaid: (id: string) => Promise<void>;
   deleteCost: (id: string) => Promise<void>;
   
@@ -150,7 +152,7 @@ interface AdegaContextType {
   updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[]) => Promise<boolean>;
 
   // Fixed Cost actions
-  addFixedCost: (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"]) => Promise<boolean>;
+  addFixedCost: (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"], receipt?: string) => Promise<boolean>;
   toggleFixedCostPaid: (id: string) => Promise<void>;
   deleteFixedCost: (id: string) => Promise<void>;
 
@@ -599,7 +601,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     amount: string, 
     buyer: "gu" | "melhor", 
     paid: boolean,
-    installmentsCount?: string
+    installmentsCount?: string,
+    receipt?: string
   ): Promise<boolean> => {
     if (!description.trim() || !amount) return false;
 
@@ -628,7 +631,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         date: targetDate,
         installments_count: finalCount > 1 ? finalCount : undefined,
         current_installment: finalCount > 1 ? i : undefined,
-        installment_parent_id: parentId
+        installment_parent_id: parentId,
+        receipt: receipt
       };
 
       if (isCloudMode) {
@@ -647,9 +651,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     setCosts((prev) => [...generatedCosts, ...prev]);
 
     if (finalCount > 1) {
-      logAction(`Lançou despesa parcelada '${description.trim()}' em ${finalCount}x de ${formatCurrency(splitAmount)} (Total: ${formatCurrency(parsedVal)})`);
+      logAction(`Lançou despesa parcelada '${description.trim()}' em ${finalCount}x de ${formatCurrency(splitAmount)} (Total: ${formatCurrency(parsedVal)})${receipt ? " com comprovante" : ""}`);
     } else {
-      logAction(`Lançou custo variável '${description.trim()}' no valor de ${formatCurrency(parsedVal)}`);
+      logAction(`Lançou custo variável '${description.trim()}' no valor de ${formatCurrency(parsedVal)}${receipt ? " com comprovante" : ""}`);
     }
 
     return true;
@@ -928,7 +932,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   };
 
   // Fixed Cost Actions
-  const addFixedCost = async (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"]): Promise<boolean> => {
+  const addFixedCost = async (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"], receipt?: string): Promise<boolean> => {
     if (!description.trim() || !amount) return false;
 
     const parsedVal = parseFloat(amount.replace(",", "."));
@@ -941,6 +945,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       dueDay: dueDay,
       paidThisMonth: false,
       assignee: assignee,
+      receipt: receipt
     };
 
     if (isCloudMode) {
@@ -954,7 +959,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     }
 
     setFixedCosts((prev) => [...prev, newFixed].sort((a, b) => a.dueDay - b.dueDay));
-    logAction(`Cadastrou conta fixa '${description.trim()}' no valor de ${formatCurrency(parsedVal)} com vencimento no dia ${dueDay}`);
+    logAction(`Cadastrou conta fixa '${description.trim()}' no valor de ${formatCurrency(parsedVal)} com vencimento no dia ${dueDay}${receipt ? " com comprovante" : ""}`);
     return true;
   };
 

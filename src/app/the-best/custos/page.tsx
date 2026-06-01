@@ -14,7 +14,9 @@ import {
   TrendingUp, 
   CheckCircle2, 
   AlertCircle,
-  X
+  X,
+  Paperclip,
+  FileText
 } from "lucide-react";
 
 export default function CustosPage() {
@@ -44,6 +46,9 @@ export default function CustosPage() {
   const [costBuyer, setCostBuyer] = useState<"gu" | "melhor">("gu");
   const [costPaid, setCostPaid] = useState(false);
   const [costInstallments, setCostInstallments] = useState("1");
+  const [costReceipt, setCostReceipt] = useState<string>("");
+  const [receiptFileName, setReceiptFileName] = useState<string>("");
+  const [selectedReceipt, setSelectedReceipt] = useState<{ title: string; url: string } | null>(null);
 
   // Calculations
   const totalGeral = costs.reduce((sum, item) => sum + item.amount, 0);
@@ -69,14 +74,32 @@ export default function CustosPage() {
     e.preventDefault();
     if (!costDesc.trim() || !costVal) return;
 
-    const success = await addCost(costDesc, costVal, costBuyer, costPaid, costInstallments);
+    const success = await addCost(costDesc, costVal, costBuyer, costPaid, costInstallments, costReceipt);
     if (success) {
       setCostDesc("");
       setCostVal("");
       setCostBuyer("gu");
       setCostPaid(false);
       setCostInstallments("1");
+      setCostReceipt("");
+      setReceiptFileName("");
       setIsAddingCost(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert("O arquivo é muito grande. O limite máximo é de 2MB para garantir a performance.");
+        return;
+      }
+      setReceiptFileName(file.name);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCostReceipt(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -192,7 +215,18 @@ export default function CustosPage() {
                       <tr key={c.id} className="hover:bg-white/[0.01] transition-colors group">
                         <td className="px-6 py-4 font-medium text-white/90">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
-                            <span>{c.description}</span>
+                            <span className="flex items-center gap-2">
+                              {c.description}
+                              {c.receipt && (
+                                <button
+                                  onClick={() => setSelectedReceipt({ title: c.description, url: c.receipt! })}
+                                  className="p-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 transition-colors"
+                                  title="Ver comprovante anexado"
+                                >
+                                  <Paperclip className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </span>
                             {c.installments_count && c.current_installment && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
                                 Parcela {c.current_installment}/{c.installments_count}
@@ -264,7 +298,7 @@ export default function CustosPage() {
                     </div>
 
                     <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase border ${
                           c.buyer === "gu" 
                             ? "bg-sky-500/10 text-sky-400 border-sky-500/20" 
@@ -273,6 +307,15 @@ export default function CustosPage() {
                           <User className="w-2.5 h-2.5" />
                           {c.buyer}
                         </span>
+                        {c.receipt && (
+                          <button
+                            onClick={() => setSelectedReceipt({ title: c.description, url: c.receipt! })}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/15 transition-all"
+                          >
+                            <Paperclip className="w-2.5 h-2.5" />
+                            Comprovante
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -414,6 +457,36 @@ export default function CustosPage() {
                     </div>
                   </div>
 
+                  {/* Comprovante */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Comprovante (Imagem ou PDF)</label>
+                    <div className="relative border border-dashed border-white/10 hover:border-white/20 rounded px-3 py-4 bg-black/20 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Paperclip className="w-5 h-5 text-white/40" />
+                      <span className="text-[10px] font-mono uppercase text-white/55 text-center">
+                        {receiptFileName ? `Carregado: ${receiptFileName}` : "Clique para anexar arquivo (Max 2MB)"}
+                      </span>
+                      {costReceipt && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setCostReceipt("");
+                            setReceiptFileName("");
+                          }}
+                          className="text-[9px] font-mono uppercase text-red-400 hover:text-red-300 mt-1 relative z-10"
+                        >
+                          Remover Comprovante
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-3 pt-2">
                     <input 
                       type="checkbox"
@@ -441,6 +514,96 @@ export default function CustosPage() {
                 <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase">
                   O valor será rateado igualmente (50/50). O balanço de acerto será atualizado automaticamente assim que o item for marcado como pago.
                 </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Selected Receipt Preview Modal */}
+      <AnimatePresence>
+        {selectedReceipt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            {/* Backdrop click to close */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedReceipt(null)}
+              className="absolute inset-0"
+            />
+            {/* Container */}
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="relative w-full max-w-3xl bg-[#0d0d10]/95 border border-white/10 rounded-xl shadow-2xl p-6 flex flex-col gap-4 z-10"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-400" />
+                  <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase truncate max-w-[200px] sm:max-w-md">
+                    Comprovante: {selectedReceipt.title}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedReceipt(null)}
+                  className="p-1 rounded text-white/40 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center justify-center">
+                {selectedReceipt.url.startsWith("data:application/pdf") ? (
+                  <div className="w-full flex flex-col items-center justify-center gap-4 py-8">
+                    <FileText className="w-16 h-16 text-white/20" />
+                    <span className="text-xs font-mono uppercase tracking-widest text-white/40">Arquivo de Documento PDF</span>
+                    <a
+                      href={selectedReceipt.url}
+                      download={`comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.pdf`}
+                      className="px-5 py-2.5 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300 flex items-center gap-2"
+                    >
+                      <Paperclip className="w-3.5 h-3.5" />
+                      Baixar / Ver PDF Completo
+                    </a>
+                    {/* Embedded preview for desktops */}
+                    <div className="hidden sm:block w-full h-[50vh] border border-white/5 mt-4 rounded-lg overflow-hidden">
+                      <iframe 
+                        src={selectedReceipt.url} 
+                        className="w-full h-full bg-black/40" 
+                        title="Visualizador PDF"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full max-h-[70vh] flex items-center justify-center overflow-auto rounded-lg border border-white/5 bg-black/40 p-2">
+                    <img 
+                      src={selectedReceipt.url} 
+                      alt="Comprovante de Custo" 
+                      className="max-w-full max-h-[60vh] object-contain rounded"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
+                <a
+                  href={selectedReceipt.url}
+                  download={selectedReceipt.url.startsWith("data:application/pdf") 
+                    ? `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.pdf`
+                    : `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.jpg`}
+                  className="px-4 py-2 bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-white font-mono text-[10px] tracking-wider rounded uppercase transition-colors"
+                >
+                  Download Direto
+                </a>
+                <button 
+                  onClick={() => setSelectedReceipt(null)}
+                  className="px-4 py-2 bg-white text-black font-semibold font-headline text-[10px] tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
+                >
+                  Fechar
+                </button>
               </div>
             </motion.div>
           </div>

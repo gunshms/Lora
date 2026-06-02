@@ -460,31 +460,39 @@ export default function CustosPage() {
                   {/* Comprovante */}
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Comprovante (Imagem ou PDF)</label>
-                    <div className="relative border border-dashed border-white/10 hover:border-white/20 rounded px-3 py-4 bg-black/20 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf"
-                        onChange={handleFileChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                      />
-                      <Paperclip className="w-5 h-5 text-white/40" />
-                      <span className="text-[10px] font-mono uppercase text-white/55 text-center">
-                        {receiptFileName ? `Carregado: ${receiptFileName}` : "Clique para anexar arquivo (Max 2MB)"}
-                      </span>
-                      {costReceipt && (
+                    {!costReceipt ? (
+                      <div className="relative border border-dashed border-white/10 hover:border-white/20 rounded px-3 py-4 bg-black/20 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf"
+                          onChange={handleFileChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                        />
+                        <Paperclip className="w-5 h-5 text-white/40" />
+                        <span className="text-[10px] font-mono uppercase text-white/55 text-center">
+                          Clique para anexar arquivo (Max 2MB)
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="border border-white/10 rounded px-3 py-3 bg-white/[0.02] flex items-center justify-between gap-3 transition-all">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <Paperclip className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                          <span className="text-[10px] font-mono uppercase text-white/70 truncate">
+                            {receiptFileName || "comprovante_carregado"}
+                          </span>
+                        </div>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
+                          onClick={() => {
                             setCostReceipt("");
                             setReceiptFileName("");
                           }}
-                          className="text-[9px] font-mono uppercase text-red-400 hover:text-red-300 mt-1 relative z-10"
+                          className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[9px] font-mono uppercase rounded transition-colors"
                         >
-                          Remover Comprovante
+                          Remover
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">

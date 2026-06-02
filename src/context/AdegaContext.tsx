@@ -235,59 +235,71 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     initializeCloudData(activeConfig);
   }, []);
 
+  // Safe localStorage helper to prevent QuotaExceededError crashes
+  const safeLocalStorageSetItem = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error: any) {
+      console.warn(`Erro ao salvar no localStorage para a chave ${key}:`, error);
+      if (error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
+        console.error("Limite de cota de armazenamento local do navegador excedido!");
+      }
+    }
+  };
+
   // Sync active sessions locally
   useEffect(() => {
-    localStorage.setItem("thebest_pdv_active_cart", JSON.stringify(activeCart));
+    safeLocalStorageSetItem("thebest_pdv_active_cart", JSON.stringify(activeCart));
   }, [activeCart]);
 
   useEffect(() => {
-    localStorage.setItem("thebest_pdv_held_carts", JSON.stringify(heldCarts));
+    safeLocalStorageSetItem("thebest_pdv_held_carts", JSON.stringify(heldCarts));
   }, [heldCarts]);
 
   useEffect(() => {
-    localStorage.setItem("thebest_pdv_active_state", JSON.stringify(isPosActive));
+    safeLocalStorageSetItem("thebest_pdv_active_state", JSON.stringify(isPosActive));
   }, [isPosActive]);
 
   // Offline/Local Fallback Sync Effects
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_costs", JSON.stringify(costs));
+      safeLocalStorageSetItem("thebest_costs", JSON.stringify(costs));
     }
   }, [costs, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_ideas", JSON.stringify(ideas));
+      safeLocalStorageSetItem("thebest_ideas", JSON.stringify(ideas));
     }
   }, [ideas, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_stock", JSON.stringify(stock));
+      safeLocalStorageSetItem("thebest_stock", JSON.stringify(stock));
     }
   }, [stock, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_fixed", JSON.stringify(fixedCosts));
+      safeLocalStorageSetItem("thebest_fixed", JSON.stringify(fixedCosts));
     }
   }, [fixedCosts, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_sales", JSON.stringify(sales));
+      safeLocalStorageSetItem("thebest_sales", JSON.stringify(sales));
     }
   }, [sales, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_debts", JSON.stringify(debts));
+      safeLocalStorageSetItem("thebest_debts", JSON.stringify(debts));
     }
   }, [debts, isCloudMode, mounted]);
 
   useEffect(() => {
     if (mounted && !isCloudMode) {
-      localStorage.setItem("thebest_audit", JSON.stringify(auditLog));
+      safeLocalStorageSetItem("thebest_audit", JSON.stringify(auditLog));
     }
   }, [auditLog, isCloudMode, mounted]);
 
@@ -636,12 +648,16 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       };
 
       if (isCloudMode) {
-        const client = getSupabaseClient(dbConfig);
-        if (client) {
-          const { error } = await client.from("thebest_costs").insert(newCost);
-          if (error) {
-            console.error("Erro ao salvar parcela na nuvem:", error.message);
+        try {
+          const client = getSupabaseClient(dbConfig);
+          if (client) {
+            const { error } = await client.from("thebest_costs").insert(newCost);
+            if (error) {
+              console.error("Erro ao salvar parcela na nuvem:", error.message);
+            }
           }
+        } catch (dbErr) {
+          console.error("Exceção ao salvar custo na nuvem (provável limite de tamanho):", dbErr);
         }
       }
 
@@ -949,12 +965,16 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     };
 
     if (isCloudMode) {
-      const client = getSupabaseClient(dbConfig);
-      if (!client) return false;
-
-      const { error } = await client.from("thebest_fixed").insert(newFixed);
-      if (error) {
-        console.warn(`Erro ao salvar conta fixa na nuvem: ${error.message}. Salvando localmente.`);
+      try {
+        const client = getSupabaseClient(dbConfig);
+        if (client) {
+          const { error } = await client.from("thebest_fixed").insert(newFixed);
+          if (error) {
+            console.warn(`Erro ao salvar conta fixa na nuvem: ${error.message}. Salvando localmente.`);
+          }
+        }
+      } catch (dbErr) {
+        console.warn("Exceção ao salvar conta fixa na nuvem (provável limite de tamanho):", dbErr);
       }
     }
 

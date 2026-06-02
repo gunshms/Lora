@@ -43,13 +43,14 @@ export default function PdvPage() {
     activeCart,
     setActiveCart,
     heldCarts,
-    setHeldCarts
+    setHeldCarts,
+    debts
   } = useAdega();
   
   // UI states
   const [searchTerm, setSearchTerm] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "dinheiro" | "credito" | "debito" | "fiado">("pix");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "dinheiro" | "credito" | "debito" | "fiado" | "consumo_oliveira" | "consumo_marques" | "cortesia">("pix");
   
   // Custom discount state
   const [discountVal, setDiscountVal] = useState("");
@@ -97,6 +98,15 @@ export default function PdvPage() {
   const totalAmount = useMemo(() => {
     return Math.max(0, subtotalAmount - parsedDiscount);
   }, [subtotalAmount, parsedDiscount]);
+
+  const activeCustomerDebt = useMemo(() => {
+    if (paymentMethod !== "fiado" || !debtCustomerName.trim()) return 0;
+    const matchingDebts = debts.filter(d => 
+      (d.status === "pending" || !d.status) && 
+      d.customer_name.toLowerCase().trim() === debtCustomerName.toLowerCase().trim()
+    );
+    return matchingDebts.reduce((sum, d) => sum + d.amount, 0);
+  }, [paymentMethod, debtCustomerName, debts]);
 
   const totalItemsCount = useMemo(() => {
     return activeCart.reduce((sum, item) => sum + item.quantity, 0);
@@ -238,9 +248,9 @@ export default function PdvPage() {
     }
 
     if (success) {
-      setSuccessSaleTotal(totalAmount);
+      setSuccessSaleTotal(paymentMethod.startsWith("consumo") || paymentMethod === "cortesia" ? 0 : totalAmount);
       setSuccessSaleChange(paymentMethod === "dinheiro" ? changeAmount : 0);
-      setSessionRevenue(prev => prev + totalAmount);
+      setSessionRevenue(prev => prev + (paymentMethod.startsWith("consumo") || paymentMethod === "cortesia" ? 0 : totalAmount));
       setActiveCart([]);
       setIsCheckoutOpen(false);
       setReceivedAmount("");
@@ -676,7 +686,10 @@ export default function PdvPage() {
                         { id: "dinheiro", label: "Dinheiro" },
                         { id: "credito", label: "Crédito" },
                         { id: "debito", label: "Débito" },
-                        { id: "fiado", label: "Fiado" }
+                        { id: "fiado", label: "Fiado" },
+                        { id: "consumo_oliveira", label: "Consumo Oliveira" },
+                        { id: "consumo_marques", label: "Consumo Marques" },
+                        { id: "cortesia", label: "Cortesia" }
                       ].map((method) => (
                         <button
                           key={method.id}
@@ -738,7 +751,7 @@ export default function PdvPage() {
                     <motion.div 
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-2 pt-2"
+                      className="space-y-3 pt-2"
                     >
                       <div className="space-y-1">
                         <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome do Cliente (Devedor)</label>
@@ -748,9 +761,25 @@ export default function PdvPage() {
                           value={debtCustomerName}
                           onChange={(e) => setDebtCustomerName(e.target.value)}
                           placeholder="Ex: João Silva, Amigo do Bairro"
-                          className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl focus:border-white/30 focus:outline-none text-white text-sm placeholder-white/20"
+                          className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl focus:border-white/30 focus:outline-none text-white text-sm placeholder-white/20 font-mono"
                         />
                       </div>
+
+                      {/* Score / Warning system */}
+                      {debtCustomerName.trim() && activeCustomerDebt > 0 && (
+                        <div className={`p-3 rounded-lg border text-[10px] font-mono uppercase leading-relaxed ${
+                          activeCustomerDebt >= 150
+                            ? "bg-rose-500/10 border-rose-500/30 text-rose-400 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.15)]"
+                            : "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                        }`}>
+                          <div className="font-bold flex items-center gap-1.5 mb-0.5">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            {activeCustomerDebt >= 150 ? "Bloqueado / Limite Excedido" : "Cliente com Débito Pendente"}
+                          </div>
+                          Débito acumulado: <span className="font-bold">{formatCurrency(activeCustomerDebt)}</span>.
+                          {activeCustomerDebt >= 150 ? " Novas vendas a prazo estão suspensas para este CPF/nome." : " Proceda com atenção."}
+                        </div>
+                      )}
                     </motion.div>
                   )}
                 </div>
@@ -762,7 +791,7 @@ export default function PdvPage() {
                   onClick={handleCheckoutSubmit}
                   disabled={
                     (paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)) ||
-                    (paymentMethod === "fiado" && !debtCustomerName.trim())
+                    (paymentMethod === "fiado" && (!debtCustomerName.trim() || activeCustomerDebt >= 150))
                   }
                   className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all shadow-lg shadow-emerald-500/10"
                 >

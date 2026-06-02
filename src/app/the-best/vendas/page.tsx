@@ -117,12 +117,39 @@ export default function VendasPage() {
       const d = new Date(s.date);
       return d.getFullYear() === activeYear && d.getMonth() === activeMonth;
     });
-    const revenue = monthlySales.reduce((sum, s) => sum + s.total_amount, 0);
+    
+    // Exclude partner withdrawals from general business revenue
+    const generalSales = monthlySales.filter(s => s.payment_method !== "consumo_oliveira" && s.payment_method !== "consumo_marques");
+    const revenue = generalSales.reduce((sum, s) => sum + s.total_amount, 0);
 
-    // 2. Cost of Goods Sold (COGS)
-    const cogs = monthlySales.reduce((sum, s) => {
-      return sum + s.items.reduce((itemSum, item) => itemSum + (item.price_cost * item.quantity), 0);
-    }, 0);
+    // 2. COGS Segregation
+    // Normal sales COGS
+    const normalCogs = generalSales
+      .filter(s => s.payment_method !== "cortesia")
+      .reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price_cost * item.quantity), 0);
+      }, 0);
+
+    // Courtesy sales COGS (which acts as a general marketing cost split 50/50)
+    const cortesiaCogs = generalSales
+      .filter(s => s.payment_method === "cortesia")
+      .reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price_cost * item.quantity), 0);
+      }, 0);
+
+    // Oliveira's personal consumption COGS (withdrawn directly from their quota)
+    const oliveiraConsumption = monthlySales
+      .filter(s => s.payment_method === "consumo_oliveira")
+      .reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price_cost * item.quantity), 0);
+      }, 0);
+
+    // Marques' personal consumption COGS (withdrawn directly from their quota)
+    const marquesConsumption = monthlySales
+      .filter(s => s.payment_method === "consumo_marques")
+      .reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price_cost * item.quantity), 0);
+      }, 0);
 
     // 3. Fixed Costs
     const fixed = fixedCosts.reduce((sum, f) => sum + f.amount, 0);
@@ -133,15 +160,20 @@ export default function VendasPage() {
       return d.getFullYear() === activeYear && d.getMonth() === activeMonth;
     }).reduce((sum, c) => sum + c.amount, 0);
 
-    const netProfit = revenue - cogs - fixed - variables;
+    // Net Profit split (excludes partner consumptions, which are deducted post-split, but includes courtesy COGS)
+    const netProfit = revenue - normalCogs - cortesiaCogs - fixed - variables;
 
     return {
       revenue,
-      cogs,
+      cogs: normalCogs,
+      cortesia: cortesiaCogs,
+      oliveiraConsumption,
+      marquesConsumption,
       fixed,
       variables,
       netProfit,
-      salesCount: monthlySales.length
+      salesCount: generalSales.filter(s => s.payment_method !== "cortesia").length,
+      totalSalesCount: monthlySales.length
     };
   }, [sales, fixedCosts, costs, activeYear, activeMonth]);
 
@@ -274,14 +306,20 @@ export default function VendasPage() {
     pix: "Pix",
     dinheiro: "Dinheiro",
     credito: "Crédito",
-    debito: "Débito"
+    debito: "Débito",
+    consumo_oliveira: "Consumo Oliveira",
+    consumo_marques: "Consumo Marques",
+    cortesia: "Cortesia"
   };
 
   const paymentMethodStyles: Record<SaleItem["payment_method"], string> = {
     pix: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     dinheiro: "bg-sky-500/10 text-sky-400 border-sky-500/20",
     credito: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    debito: "bg-pink-500/10 text-pink-400 border-pink-500/20"
+    debito: "bg-pink-500/10 text-pink-400 border-pink-500/20",
+    consumo_oliveira: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    consumo_marques: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    cortesia: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
   };
 
   // Handle renaming of debt devedor
@@ -297,7 +335,7 @@ export default function VendasPage() {
   };
 
   // Settle single debt record
-  const handleSettleDebt = async (id: string, method: SaleItem["payment_method"]) => {
+  const handleSettleDebt = async (id: string, method: "pix" | "dinheiro" | "credito" | "debito") => {
     await settleDebt(id, method);
     setSettlingDebtId(null);
   };
@@ -540,6 +578,17 @@ export default function VendasPage() {
                 <span className="font-mono text-red-400/80 font-medium">-{formatCurrency(monthlyMetrics.cogs)}</span>
               </div>
 
+              {/* Row 2.5: Cortesia */}
+              {monthlyMetrics.cortesia > 0 && (
+                <div className="flex justify-between items-center text-xs pb-2 border-b border-white/5">
+                  <div className="space-y-0.5">
+                    <span className="text-white/70">(-) Cortesias (Mkt Geral)</span>
+                    <span className="text-[9px] font-mono text-white/30 block">Custo de bebidas oferecidas como cortesia</span>
+                  </div>
+                  <span className="font-mono text-yellow-500/80 font-medium">-{formatCurrency(monthlyMetrics.cortesia)}</span>
+                </div>
+              )}
+
               {/* Row 3: Contas Fixas */}
               <div className="flex justify-between items-center text-xs pb-2 border-b border-white/5">
                 <div className="space-y-0.5">
@@ -572,25 +621,105 @@ export default function VendasPage() {
               </div>
 
             </div>
+
+            {/* Ponto de Equilíbrio (Breakeven) Progress Bar - Idea 4 */}
+            {(() => {
+              const totalExpenses = monthlyMetrics.cogs + monthlyMetrics.cortesia + monthlyMetrics.fixed + monthlyMetrics.variables;
+              const isBreakevenReached = monthlyMetrics.revenue >= totalExpenses && totalExpenses > 0;
+              const progressPercent = totalExpenses > 0 ? Math.min(100, (monthlyMetrics.revenue / totalExpenses) * 100) : 0;
+              const leftToBreakeven = Math.max(0, totalExpenses - monthlyMetrics.revenue);
+
+              return (
+                <div className="bg-black/50 border border-white/5 p-4 rounded-xl space-y-3 relative overflow-hidden shadow-[0_0_20px_rgba(255,255,255,0.01)]">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider block">Ponto de Equilíbrio</span>
+                      <span className="text-[9px] font-mono text-white/20 uppercase block">Meta de Faturamento Comercial</span>
+                    </div>
+                    {isBreakevenReached ? (
+                      <span className="px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_12px_rgba(52,211,153,0.15)] animate-pulse">
+                        Equilíbrio Atingido 🎉
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Faltam {formatCurrency(leftToBreakeven)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Neon Glowing Progress Bar Container */}
+                  <div className="w-full h-2.5 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden relative">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-1000 ease-out ${
+                        isBreakevenReached 
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" 
+                          : "bg-gradient-to-r from-sky-500 to-indigo-400 shadow-[0_0_8px_rgba(56,189,248,0.4)]"
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between text-[9px] font-mono text-white/40 uppercase">
+                    <span>Faturado: {formatCurrency(monthlyMetrics.revenue)}</span>
+                    <span>Custo Total: {formatCurrency(totalExpenses)}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Division Split Card */}
+          {/* Division Split Card - Idea 2 */}
           <div className="bg-white/[0.02] border border-white/10 p-4 rounded-xl space-y-3">
-            <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Divisão de Lucro Societário (50/50)</span>
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Divisão de Lucro Societário (50/50)</span>
+              <p className="text-[8px] font-mono text-white/20 uppercase">COGS de Consumo Próprio é debitado da quota do respectivo sócio</p>
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-1">
-                <span className="text-[9px] font-mono text-sky-400 uppercase tracking-wider block">Quota Oliveira</span>
-                <span className="text-sm font-headline font-bold text-white">
-                  {formatCurrency(Math.max(0, monthlyMetrics.netProfit) / 2)}
-                </span>
+              {/* Oliveira Card */}
+              <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-sky-500/[0.01] rounded-full blur-xl pointer-events-none" />
+                <span className="text-[9px] font-mono text-sky-400 uppercase tracking-wider block font-bold">Oliveira</span>
+                
+                <div className="space-y-1 text-[10px] font-mono">
+                  <div className="flex justify-between text-white/40">
+                    <span>Quota Base (50%):</span>
+                    <span>{formatCurrency(Math.max(0, monthlyMetrics.netProfit) / 2)}</span>
+                  </div>
+                  <div className="flex justify-between text-red-400/80">
+                    <span>Retirada (COGS):</span>
+                    <span>-{formatCurrency(monthlyMetrics.oliveiraConsumption)}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-1 flex justify-between text-white font-bold text-xs mt-1">
+                    <span className="text-white/80">Total Líquido:</span>
+                    <span className="text-sky-400">
+                      {formatCurrency(Math.max(0, (Math.max(0, monthlyMetrics.netProfit) / 2) - monthlyMetrics.oliveiraConsumption))}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-1">
-                <span className="text-[9px] font-mono text-purple-400 uppercase tracking-wider block">Quota Marques</span>
-                <span className="text-sm font-headline font-bold text-white">
-                  {formatCurrency(Math.max(0, monthlyMetrics.netProfit) / 2)}
-                </span>
+              {/* Marques Card */}
+              <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/[0.01] rounded-full blur-xl pointer-events-none" />
+                <span className="text-[9px] font-mono text-purple-400 uppercase tracking-wider block font-bold">Marques</span>
+                
+                <div className="space-y-1 text-[10px] font-mono">
+                  <div className="flex justify-between text-white/40">
+                    <span>Quota Base (50%):</span>
+                    <span>{formatCurrency(Math.max(0, monthlyMetrics.netProfit) / 2)}</span>
+                  </div>
+                  <div className="flex justify-between text-red-400/80">
+                    <span>Retirada (COGS):</span>
+                    <span>-{formatCurrency(monthlyMetrics.marquesConsumption)}</span>
+                  </div>
+                  <div className="border-t border-white/5 pt-1 flex justify-between text-white font-bold text-xs mt-1">
+                    <span className="text-white/80">Total Líquido:</span>
+                    <span className="text-purple-400">
+                      {formatCurrency(Math.max(0, (Math.max(0, monthlyMetrics.netProfit) / 2) - monthlyMetrics.marquesConsumption))}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -795,19 +924,39 @@ export default function VendasPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-1.5 group">
-                            <span className="font-headline font-bold text-white text-sm tracking-wide block truncate max-w-[150px]">
-                              {debt.customer_name}
-                            </span>
-                            <button 
-                              onClick={() => startEditingName(debt)}
-                              className="opacity-20 group-hover:opacity-100 p-0.5 text-white/60 hover:text-white transition-opacity"
-                              title="Editar nome"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                          </div>
+                        <div className="space-y-1">
+                          {(() => {
+                            const customerTotalDebt = pendingDebts
+                              .filter(d => d.customer_name.toLowerCase().trim() === debt.customer_name.toLowerCase().trim())
+                              .reduce((sum, d) => sum + d.amount, 0);
+
+                            const scoreBadge = customerTotalDebt >= 150 
+                              ? { label: "Bloqueado", styles: "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.1)] font-bold animate-pulse" }
+                              : customerTotalDebt > 50
+                              ? { label: "Atrasado", styles: "bg-amber-500/10 text-amber-400 border-amber-500/20" }
+                              : { label: "Regular", styles: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" };
+
+                            return (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5 group">
+                                  <span className="font-headline font-bold text-white text-sm tracking-wide block truncate max-w-[120px]" title={debt.customer_name}>
+                                    {debt.customer_name}
+                                  </span>
+                                  <span className={`px-1.5 py-0.2 rounded text-[7px] font-mono uppercase border ${scoreBadge.styles}`}>
+                                    {scoreBadge.label}
+                                  </span>
+                                  <button 
+                                    onClick={() => startEditingName(debt)}
+                                    className="opacity-20 group-hover:opacity-100 p-0.5 text-white/60 hover:text-white transition-opacity"
+                                    title="Editar nome"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <span className="text-[8px] font-mono text-white/30 uppercase block">Total Devido: {formatCurrency(customerTotalDebt)}</span>
+                              </div>
+                            );
+                          })()}
                           <span className="text-[9px] font-mono text-white/35 flex items-center gap-1">
                             <Calendar className="w-3 h-3" /> {formatDate(debt.date)}
                           </span>

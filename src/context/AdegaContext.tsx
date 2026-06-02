@@ -46,6 +46,7 @@ export interface StockItem {
   price_sell?: number;
   barcode?: string;
   recipe?: RecipeIngredient[];
+  price_history?: { date: string; cost: number; sell: number }[];
 }
 
 export interface FixedCostItem {
@@ -68,7 +69,7 @@ export interface SaleItem {
     price_sell: number;
   }[];
   total_amount: number;
-  payment_method: "pix" | "dinheiro" | "credito" | "debito";
+  payment_method: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia";
   profit: number;
   date: string;
 }
@@ -157,7 +158,7 @@ interface AdegaContextType {
   deleteFixedCost: (id: string) => Promise<void>;
 
   // Sales actions
-  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito", discountAmount?: number) => Promise<boolean>;
+  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia", discountAmount?: number) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   
   // Debt/Fiado actions
@@ -904,13 +905,31 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     if (isNaN(parsedCost) || isNaN(parsedSell)) return false;
 
+    const currentCost = item.price_cost || 0;
+    const currentSell = item.price_sell || 0;
+    const nextCost = parsedCost;
+    const nextSell = parsedSell;
+    
+    let newHistory = item.price_history || [];
+    if (currentCost !== nextCost || currentSell !== nextSell) {
+      newHistory = [
+        ...newHistory,
+        {
+          date: new Date().toISOString().split("T")[0],
+          cost: nextCost,
+          sell: nextSell
+        }
+      ].slice(-10); // Mantém as últimas 10 alterações para economizar cota de espaço
+    }
+
     const updateFields: any = {
       price_cost: parsedCost,
       price_sell: parsedSell,
       barcode: barcode?.trim() || null,
       name: name ? name.trim() : item.name,
       status: status || item.status,
-      recipe: recipe || null
+      recipe: recipe || null,
+      price_history: newHistory
     };
 
     if (isCloudMode) {
@@ -938,7 +957,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
               barcode: barcode?.trim() || undefined,
               name: name ? name.trim() : s.name,
               status: status || s.status,
-              recipe: recipe || undefined
+              recipe: recipe || undefined,
+              price_history: newHistory
             }
           : s
       )
@@ -1030,13 +1050,14 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   // Sales Actions
   const registerSale = async (
     items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[],
-    paymentMethod: "pix" | "dinheiro" | "credito" | "debito",
+    paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia",
     discountAmount = 0
   ): Promise<boolean> => {
     if (items.length === 0) return false;
 
     const rawTotal = items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
-    const totalAmount = Math.max(0, rawTotal - discountAmount);
+    const isPersonalOrCortesia = paymentMethod === "consumo_oliveira" || paymentMethod === "consumo_marques" || paymentMethod === "cortesia";
+    const totalAmount = isPersonalOrCortesia ? 0 : Math.max(0, rawTotal - discountAmount);
     
     // Distribute discount proportionally across items for accurate profit math
     const discountRatio = rawTotal > 0 ? totalAmount / rawTotal : 0;
@@ -1045,7 +1066,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     const newSale: SaleItem = {
       id: `sale-${Date.now()}`,
-      items: items.map(i => ({ ...i, price_sell: i.price_sell * discountRatio })),
+      items: items.map(i => ({ ...i, price_sell: isPersonalOrCortesia ? 0 : i.price_sell * discountRatio })),
       total_amount: parseFloat(totalAmount.toFixed(2)),
       payment_method: paymentMethod,
       profit: parseFloat(profit.toFixed(2)),

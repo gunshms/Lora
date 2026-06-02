@@ -497,6 +497,50 @@ export default function EstoquePage() {
                     </div>
                   </div>
 
+                  {/* HISTÓRICO DE REAJUSTES (INFLAÇÃO) - Idea 5 */}
+                  {editingProduct.price_history && editingProduct.price_history.length > 0 && (
+                    <div className="border-t border-white/5 pt-5 space-y-4">
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-headline font-bold text-white uppercase tracking-wider">Histórico de Reajustes</h4>
+                        <p className="text-[10px] font-mono text-white/35 uppercase">Acompanhe a inflação e margens de venda</p>
+                      </div>
+
+                      <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                        {editingProduct.price_history.map((hist: any, index: number) => {
+                          const prevHist = index > 0 ? editingProduct.price_history[index - 1] : null;
+                          const costDiff = prevHist ? hist.cost - prevHist.cost : 0;
+                          const sellDiff = prevHist ? hist.sell - prevHist.sell : 0;
+
+                          return (
+                            <div key={index} className="flex justify-between items-center bg-black/40 border border-white/5 p-3 rounded-xl text-[10px] font-mono hover:border-white/10 transition-colors">
+                              <span className="text-white/50">{new Date(hist.date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+                              <div className="text-right space-y-0.5">
+                                <div>
+                                  <span className="text-white/30 uppercase">Custo: </span>
+                                  <span className="text-white font-bold">{formatCurrency(hist.cost)}</span>
+                                  {costDiff !== 0 && (
+                                    <span className={`ml-1.5 font-bold ${costDiff > 0 ? "text-rose-400" : "text-emerald-400"}`}>
+                                      {costDiff > 0 ? "▲" : "▼"} {formatCurrency(Math.abs(costDiff))}
+                                    </span>
+                                  )}
+                                </div>
+                                <div>
+                                  <span className="text-white/30 uppercase">Venda: </span>
+                                  <span className="text-emerald-400 font-bold">{formatCurrency(hist.sell)}</span>
+                                  {sellDiff !== 0 && (
+                                    <span className={`ml-1.5 font-bold ${sellDiff > 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                      {sellDiff > 0 ? "▲" : "▼"} {formatCurrency(Math.abs(sellDiff))}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <button 
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"

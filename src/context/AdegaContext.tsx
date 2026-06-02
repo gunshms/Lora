@@ -275,46 +275,46 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   // Offline/Local Fallback Sync Effects
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_costs", JSON.stringify(costs));
     }
-  }, [costs, isCloudMode, mounted]);
+  }, [costs, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_ideas", JSON.stringify(ideas));
     }
-  }, [ideas, isCloudMode, mounted]);
+  }, [ideas, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_stock", JSON.stringify(stock));
     }
-  }, [stock, isCloudMode, mounted]);
+  }, [stock, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_fixed", JSON.stringify(fixedCosts));
     }
-  }, [fixedCosts, isCloudMode, mounted]);
+  }, [fixedCosts, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_sales", JSON.stringify(sales));
     }
-  }, [sales, isCloudMode, mounted]);
+  }, [sales, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_debts", JSON.stringify(debts));
     }
-  }, [debts, isCloudMode, mounted]);
+  }, [debts, mounted]);
 
   useEffect(() => {
-    if (mounted && !isCloudMode) {
+    if (mounted) {
       safeLocalStorageSetItem("thebest_audit", JSON.stringify(auditLog));
     }
-  }, [auditLog, isCloudMode, mounted]);
+  }, [auditLog, mounted]);
 
   const loadLocalFallback = () => {
     const localCosts = localStorage.getItem("thebest_costs");
@@ -1020,6 +1020,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           const { error } = await client.from("thebest_fixed").insert(newFixed);
           if (error) {
             console.warn(`Erro ao salvar conta fixa na nuvem: ${error.message}. Salvando localmente.`);
+            alert(`Aviso da Nuvem: Não foi possível salvar a conta fixa no Supabase (${error.message}).\n\nCertifique-se de ter criado a tabela 'thebest_fixed' no painel do Supabase executando o script SQL das Configurações.`);
           }
         }
       } catch (dbErr) {
@@ -1049,6 +1050,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       
       if (error) {
         console.warn(`Erro ao atualizar conta fixa na nuvem: ${error.message}. Atualizando localmente.`);
+        alert(`Erro ao atualizar quitação na nuvem: ${error.message}`);
       }
     }
 
@@ -1069,6 +1071,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       const { error } = await client.from("thebest_fixed").delete().eq("id", id);
       if (error) {
         console.warn(`Erro ao deletar conta fixa na nuvem: ${error.message}. Deletando localmente.`);
+        alert(`Erro ao deletar conta fixa na nuvem: ${error.message}`);
       }
     }
 
@@ -1117,6 +1120,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         const { error: saleError } = await client.from("thebest_sales").insert(newSale);
         if (saleError) {
           console.error("Erro ao registrar venda na nuvem:", saleError.message);
+          alert(`Erro ao registrar venda na nuvem: ${saleError.message}\n\nCertifique-se de ter criado a tabela 'thebest_sales' no painel do Supabase executando o script SQL das Configurações.`);
         }
         await deductStockLevels(items, client);
       }
@@ -1194,6 +1198,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         const { error } = await client.from("thebest_debts").insert(newDebt);
         if (error) {
           console.error("Erro ao registrar fiado na nuvem:", error.message);
+          alert(`Erro ao registrar fiado na nuvem: ${error.message}\n\nCertifique-se de ter criado a tabela 'thebest_debts' no painel do Supabase executando o script SQL das Configurações.`);
         }
         await deductStockLevels(items, client);
       }

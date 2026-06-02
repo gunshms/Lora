@@ -148,32 +148,22 @@ export default function CustosPage() {
       </div>
 
       {/* Mini financial report */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-[#0b0b0d] border border-white/5 p-4 rounded-lg flex flex-col justify-between">
           <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Total Acumulado</span>
           <span className="text-xl font-headline font-bold text-white tracking-wide mt-2">{formatCurrency(totalGeral)}</span>
         </div>
         <div className="bg-[#0b0b0d] border border-white/5 p-4 rounded-lg flex flex-col justify-between">
-          <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Investido por Gu</span>
+          <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Investido por Oliveira</span>
           <span className="text-xl font-headline font-bold text-white/80 tracking-wide mt-2">
             {formatCurrency(totalGu)} <span className="text-[9px] text-white/40 font-mono">({formatCurrency(totalGuPago)} Pago)</span>
           </span>
         </div>
         <div className="bg-[#0b0b0d] border border-white/5 p-4 rounded-lg flex flex-col justify-between">
-          <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Investido por Melhor</span>
+          <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Investido por Marques</span>
           <span className="text-xl font-headline font-bold text-white/80 tracking-wide mt-2">
             {formatCurrency(totalMelhor)} <span className="text-[9px] text-white/40 font-mono">({formatCurrency(totalMelhorPago)} Pago)</span>
           </span>
-        </div>
-        <div className="bg-white/[0.02] border border-white/10 p-4 rounded-lg flex flex-col justify-between">
-          <span className="text-[10px] font-mono text-emerald-400/80 uppercase tracking-wider">Saldo de Acerto</span>
-          {credor ? (
-            <span className="text-sm font-headline font-semibold text-white mt-2 leading-snug">
-              <span className="text-emerald-400 font-bold">{credor}</span> recebe <span className="text-base text-white font-bold">{formatCurrency(saldoAcerto)}</span>
-            </span>
-          ) : (
-            <span className="text-xs font-headline font-semibold text-white/60 mt-2 uppercase tracking-wider">Contas Iguais</span>
-          )}
         </div>
       </div>
 
@@ -190,8 +180,8 @@ export default function CustosPage() {
           <div className="flex flex-wrap gap-2">
             {[
               { id: "all", label: "Todos" },
-              { id: "gu", label: "Só Gu" },
-              { id: "melhor", label: "Só Melhor" },
+              { id: "gu", label: "Só Oliveira" },
+              { id: "melhor", label: "Só Marques" },
               { id: "pending", label: "Pendentes" },
             ].map((f) => (
               <button 
@@ -257,7 +247,7 @@ export default function CustosPage() {
                               : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                           }`}>
                             <User className="w-2.5 h-2.5" />
-                            {c.buyer}
+                            {c.buyer === "gu" ? "Oliveira" : "Marques"}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-mono font-semibold text-white">{formatCurrency(c.amount)}</td>
@@ -321,7 +311,7 @@ export default function CustosPage() {
                             : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                         }`}>
                           <User className="w-2.5 h-2.5" />
-                          {c.buyer}
+                          {c.buyer === "gu" ? "Oliveira" : "Marques"}
                         </span>
                         {c.receipt && (
                           <button
@@ -457,7 +447,7 @@ export default function CustosPage() {
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
-                        Gu
+                        Oliveira
                       </button>
                       <button 
                         type="button"
@@ -468,7 +458,7 @@ export default function CustosPage() {
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
-                        Melhor
+                        Marques
                       </button>
                     </div>
                   </div>

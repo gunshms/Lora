@@ -132,55 +132,49 @@ export default function AdegaDashboard() {
           </div>
         </div>
 
-        {/* Paid & Settlement Balance Card */}
+        {/* Oliveira Cost Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-[#0e0e11] to-[#070709] border border-white/5 p-6 rounded-xl group">
           <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
             <TrendingUp className="w-48 h-48 text-white" />
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Balanço de Acerto</span>
-            <span className="p-1.5 rounded bg-white/[0.03] text-emerald-400 border border-white/10">
+            <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Investido por Oliveira</span>
+            <span className="p-1.5 rounded bg-white/[0.03] text-sky-400 border border-white/10">
               <DollarSign className="w-3.5 h-3.5" />
             </span>
           </div>
 
-          {credor ? (
-            <h3 className="text-xl font-headline font-bold text-white tracking-wide flex items-baseline gap-2">
-              <span className="text-emerald-400">{credor}</span> recebe <span className="text-white text-2xl">{formatCurrency(saldoAcerto)}</span>
-            </h3>
-          ) : (
-            <h3 className="text-lg font-headline font-bold text-white/60 tracking-wide uppercase">
-              Contas 50/50 Equilibradas!
-            </h3>
-          )}
+          <h3 className="text-3xl font-headline font-bold text-white tracking-wide">
+            {formatCurrency(totalGu)}
+          </h3>
 
           <div className="flex items-center justify-between mt-6 text-[10px] font-mono text-white/30 uppercase border-t border-white/5 pt-4">
-            <span>Pago Gu: {formatCurrency(totalGuPago)}</span>
-            <span>Pago Melhor: {formatCurrency(totalMelhorPago)}</span>
+            <span>Pago: {formatCurrency(totalGuPago)}</span>
+            <span>Pendente: {formatCurrency(totalGuPendente)}</span>
           </div>
         </div>
 
-        {/* Pending Ledger Card */}
+        {/* Marques Cost Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-[#0e0e11] to-[#070709] border border-white/5 p-6 rounded-xl group">
           <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
             <TrendingDown className="w-48 h-48 text-white" />
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Total Pendente</span>
-            <span className="p-1.5 rounded bg-white/[0.03] text-amber-400 border border-white/10">
-              <TrendingDown className="w-3.5 h-3.5" />
+            <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Investido por Marques</span>
+            <span className="p-1.5 rounded bg-white/[0.03] text-purple-400 border border-white/10">
+              <DollarSign className="w-3.5 h-3.5" />
             </span>
           </div>
 
           <h3 className="text-3xl font-headline font-bold text-white tracking-wide">
-            {formatCurrency(totalGuPendente + totalMelhorPendente)}
+            {formatCurrency(totalMelhor)}
           </h3>
 
           <div className="flex items-center justify-between mt-6 text-[10px] font-mono text-white/30 uppercase border-t border-white/5 pt-4">
-            <span>Gu: {formatCurrency(totalGuPendente)}</span>
-            <span>Melhor: {formatCurrency(totalMelhorPendente)}</span>
+            <span>Pago: {formatCurrency(totalMelhorPago)}</span>
+            <span>Pendente: {formatCurrency(totalMelhorPendente)}</span>
           </div>
         </div>
 
@@ -291,7 +285,7 @@ export default function AdegaDashboard() {
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-medium text-white/90 leading-tight">{c.description}</span>
                       <span className="text-[9px] font-mono text-white/30 uppercase tracking-wider">
-                        {c.date} • {c.buyer === "gu" ? "Comprador: Gu" : "Comprador: Melhor"}
+                        {c.date} • {c.buyer === "gu" ? "Comprador: Oliveira" : "Comprador: Marques"}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">

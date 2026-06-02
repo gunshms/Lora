@@ -243,8 +243,8 @@ export default function ContasFixasPage() {
           <div className="flex flex-wrap gap-2">
             {[
               { id: "all", label: "Todas" },
-              { id: "gu", label: "Só Gu" },
-              { id: "melhor", label: "Só Melhor" },
+              { id: "gu", label: "Só Oliveira" },
+              { id: "melhor", label: "Só Marques" },
               { id: "ambos", label: "Só Ambos (50-50)" },
               { id: "pending", label: "Pendentes do Mês" },
             ].map((f) => (
@@ -312,7 +312,7 @@ export default function ContasFixasPage() {
                             ) : (
                               <User className="w-2.5 h-2.5" />
                             )}
-                            {f.assignee === "ambos" ? "Ambos 50/50" : f.assignee}
+                            {f.assignee === "ambos" ? "Ambos 50/50" : f.assignee === "gu" ? "Oliveira" : "Marques"}
                           </span>
                         </td>
 
@@ -391,7 +391,7 @@ export default function ContasFixasPage() {
                           ) : (
                             <User className="w-2.5 h-2.5" />
                           )}
-                          {f.assignee === "ambos" ? "Ambos 50/50" : f.assignee}
+                          {f.assignee === "ambos" ? "Ambos 50/50" : f.assignee === "gu" ? "Oliveira" : "Marques"}
                         </span>
                         {f.receipt && (
                           <button
@@ -531,7 +531,7 @@ export default function ContasFixasPage() {
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
-                        Só Gu
+                        Só Oliveira
                       </button>
                       <button 
                         type="button"
@@ -542,7 +542,7 @@ export default function ContasFixasPage() {
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
-                        Só Melhor
+                        Só Marques
                       </button>
                       <button 
                         type="button"

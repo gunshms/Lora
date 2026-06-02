@@ -18,6 +18,7 @@ import {
   Edit2
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function EstoquePage() {
   const { 
@@ -273,6 +274,15 @@ export default function EstoquePage() {
 
                   {/* Action buttons (Edit & Delete) */}
                   <div className="flex items-center gap-1.5">
+                    {(item.status === "urgent" || item.quantity < 5) && (
+                      <Link 
+                        href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}`}
+                        className="p-1.5 rounded hover:bg-emerald-500/10 text-emerald-400 transition-colors"
+                        title="Repor Estoque (Lançar Custo)"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                      </Link>
+                    )}
                     <button 
                       onClick={() => handleStartEdit(item)}
                       className="p-1.5 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors"

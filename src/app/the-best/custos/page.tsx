@@ -37,6 +37,22 @@ export default function CustosPage() {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
+    
+    // Auto-fill from URL parameters (replenishment triggers)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const autoDesc = params.get("autoDesc");
+      const autoVal = params.get("autoVal");
+      if (autoDesc) {
+        setCostDesc(autoDesc);
+        if (autoVal && autoVal !== "0" && autoVal !== "undefined") {
+          setCostVal(autoVal);
+        }
+        setIsAddingCost(true);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 

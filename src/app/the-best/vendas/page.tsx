@@ -33,7 +33,8 @@ export default function VendasPage() {
     settleDebt, 
     renameDebtCustomer,
     fixedCosts,
-    costs
+    costs,
+    stock
   } = useAdega();
 
   // Calendar States
@@ -162,6 +163,66 @@ export default function VendasPage() {
     if (totalRevenue === 0) return 0;
     return (totalProfit / totalRevenue) * 100;
   }, [totalRevenue, totalProfit]);
+
+  // 1. Sales by weekday (Sun to Sat) for the active month/year
+  const salesByWeekday = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    sales.forEach(sale => {
+      const d = new Date(sale.date);
+      if (d.getFullYear() === activeYear && d.getMonth() === activeMonth) {
+        counts[d.getDay()] += sale.total_amount;
+      }
+    });
+    const maxVal = Math.max(...counts, 1);
+    return counts.map((val, idx) => ({
+      day: weekdays[idx],
+      val,
+      percentage: (val / maxVal) * 100
+    }));
+  }, [sales, activeYear, activeMonth]);
+
+  // 2. Top 5 best selling products of the active month/year
+  const topProducts = useMemo(() => {
+    const counts: Record<string, { name: string; qty: number; revenue: number }> = {};
+    sales.forEach(sale => {
+      const d = new Date(sale.date);
+      if (d.getFullYear() === activeYear && d.getMonth() === activeMonth) {
+        sale.items.forEach(item => {
+          if (!counts[item.id]) {
+            counts[item.id] = { name: item.name, qty: 0, revenue: 0 };
+          }
+          counts[item.id].qty += item.quantity;
+          counts[item.id].revenue += item.price_sell * item.quantity;
+        });
+      }
+    });
+    const sorted = Object.values(counts).sort((a, b) => b.qty - a.qty).slice(0, 5);
+    const maxQty = sorted[0]?.qty || 1;
+    return sorted.map(p => ({
+      ...p,
+      relativePercentage: (p.qty / maxQty) * 100
+    }));
+  }, [sales, activeYear, activeMonth]);
+
+  // 3. Margin alerts for products in stock (under 35% margin)
+  const marginAlerts = useMemo(() => {
+    const alerts: { id: string; name: string; cost: number; sell: number; margin: number }[] = [];
+    stock.forEach(item => {
+      if (item.price_cost && item.price_sell && item.price_sell > 0) {
+        const margin = ((item.price_sell - item.price_cost) / item.price_sell) * 100;
+        if (margin < 35) {
+          alerts.push({
+            id: item.id,
+            name: item.name,
+            cost: item.price_cost,
+            sell: item.price_sell,
+            margin
+          });
+        }
+      }
+    });
+    return alerts.sort((a, b) => a.margin - b.margin);
+  }, [stock]);
 
   // Active filter based on calendar day selection
   const filteredSales = useMemo(() => {
@@ -539,6 +600,151 @@ export default function VendasPage() {
                 A amortização de parcelas passadas ocorre de forma transparente sobre o mês correspondente da compra, preservando lucros futuros.
               </p>
             </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* SEÇÃO 3: INTELIGÊNCIA DE NEGÓCIOS & MARGENS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* Bloco A: BI & Pico de Vendas */}
+        <div className="bg-[#0b0b0d] border border-white/5 rounded-xl p-4 sm:p-6 space-y-6">
+          <div className="flex items-center gap-2 pb-4 border-b border-white/5">
+            <TrendingUp className="w-4.5 h-4.5 text-emerald-400" />
+            <h3 className="font-headline font-bold text-base tracking-wider text-white uppercase">Inteligência de Vendas (BI)</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Gráfico de Vendas por Dia da Semana */}
+            <div className="space-y-4">
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Pico de Faturamento (Semanal)</span>
+              
+              <div className="flex justify-between items-end h-32 pt-6 px-1 border-b border-white/5 relative">
+                {salesByWeekday.map((day, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1 group">
+                    <span className="opacity-0 group-hover:opacity-100 absolute top-0 text-[8px] font-mono bg-white text-black px-1.5 py-0.5 rounded transition-opacity duration-300 pointer-events-none whitespace-nowrap z-10">
+                      {formatCurrency(day.val)}
+                    </span>
+                    <div 
+                      className="w-4 sm:w-5 bg-gradient-to-t from-emerald-500/10 to-emerald-400 rounded-t border-t border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.2)] transition-all duration-500" 
+                      style={{ height: `${Math.max(5, day.percentage)}%` }} 
+                    />
+                    <span className="text-[8px] font-mono text-white/40 uppercase">{day.day}</span>
+                  </div>
+                ))}
+              </div>
+              <span className="text-[8px] font-mono text-white/30 uppercase block text-center mt-1">Faturamento acumulado por dia da semana</span>
+            </div>
+
+            {/* Top 5 Produtos mais Vendidos */}
+            <div className="space-y-3">
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Top 5 Produtos mais Vendidos</span>
+              
+              {topProducts.length > 0 ? (
+                <div className="space-y-2">
+                  {topProducts.map((p, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between items-end text-[10px]">
+                        <span className="font-semibold text-white/80 truncate max-w-[130px]">{p.name}</span>
+                        <span className="font-mono text-white/40">{p.qty} unid.</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 relative">
+                        <div 
+                          className="absolute inset-y-0 left-0 bg-emerald-400 rounded-full" 
+                          style={{ width: `${p.relativePercentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-[10px] font-mono uppercase text-white/30 border border-dashed border-white/5 rounded-lg flex items-center justify-center">
+                  Sem vendas registradas
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Bloco B: Saúde Financeira & Margens */}
+        <div className="bg-[#0b0b0d] border border-white/5 rounded-xl p-4 sm:p-6 space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Percent className="w-4.5 h-4.5 text-sky-400" />
+              <h3 className="font-headline font-bold text-base tracking-wider text-white uppercase">Saúde & Precificação</h3>
+            </div>
+            
+            {/* Health Badge */}
+            {monthlyMetrics.revenue > 0 ? (
+              <span className={`px-2.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
+                ((monthlyMetrics.revenue - monthlyMetrics.cogs) / monthlyMetrics.revenue * 100) >= 35
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(52,211,153,0.1)]"
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+              }`}>
+                {((monthlyMetrics.revenue - monthlyMetrics.cogs) / monthlyMetrics.revenue * 100) >= 35
+                  ? "Margem Excelente"
+                  : "Margem sob Atenção"
+                }
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded text-[9px] font-mono text-white/30 uppercase border border-white/5 bg-white/[0.01]">
+                Sem dados
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            {/* Margem de Contribuição Geral */}
+            <div className="md:col-span-5 bg-black/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
+              <div>
+                <span className="text-[9px] font-mono text-white/40 uppercase tracking-wider block">Margem de Contribuição</span>
+                <span className="text-2xl font-headline font-black text-white mt-1 block tracking-wide">
+                  {monthlyMetrics.revenue > 0 
+                    ? `${Math.round(((monthlyMetrics.revenue - monthlyMetrics.cogs) / monthlyMetrics.revenue) * 100)}%`
+                    : "0%"
+                  }
+                </span>
+              </div>
+              <span className="text-[8px] font-mono text-white/35 leading-tight uppercase block">
+                Faturamento líquido do COGS: <span className="text-white font-bold">{formatCurrency(monthlyMetrics.revenue - monthlyMetrics.cogs)}</span>
+              </span>
+            </div>
+
+            {/* Lista de Alertas de Margem por Produto */}
+            <div className="md:col-span-7 space-y-2">
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block flex items-center justify-between">
+                <span>Alertas de Margem Crítica (&lt;35%)</span>
+                <span className="text-[8px] px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">{marginAlerts.length} itens</span>
+              </span>
+
+              {marginAlerts.length > 0 ? (
+                <div className="space-y-1.5 max-h-[110px] overflow-y-auto pr-1">
+                  {marginAlerts.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-[10px] bg-white/[0.01] border border-white/5 px-2.5 py-1.5 rounded hover:border-white/10 transition-colors">
+                      <div className="min-w-0">
+                        <span className="font-semibold text-white/80 block truncate max-w-[120px]">{item.name}</span>
+                        <span className="font-mono text-white/30 text-[8px] block">
+                          Custo: {formatCurrency(item.cost)} • Venda: {formatCurrency(item.sell)}
+                        </span>
+                      </div>
+                      <span className="font-mono font-bold text-rose-400">
+                        {Math.round(item.margin)}% Margem
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-[9px] font-mono uppercase text-emerald-400 border border-dashed border-emerald-500/20 bg-emerald-500/5 rounded-lg flex flex-col items-center justify-center gap-1">
+                  <Check className="w-4 h-4" />
+                  <span>Todas as margens da adega saudáveis!</span>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
 

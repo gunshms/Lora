@@ -237,15 +237,23 @@ export default function AdegaDashboard() {
                   {urgentStock.map((item) => (
                     <div 
                       key={item.id} 
-                      className="flex items-center justify-between px-4 py-3 rounded-lg bg-rose-950/10 border border-rose-500/10"
+                      className="flex items-center justify-between px-4 py-3 rounded-lg bg-rose-950/10 border border-rose-500/10 gap-4"
                     >
-                      <div className="flex items-center gap-3">
-                        <Wine className="w-4 h-4 text-rose-400" />
-                        <span className="text-sm font-medium text-white/90">{item.name}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Wine className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-white/90 truncate">{item.name}</span>
                       </div>
-                      <span className="text-xs font-mono px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                        Qtd: {item.quantity}
-                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs font-mono px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                          Qtd: {item.quantity}
+                        </span>
+                        <Link
+                          href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}`}
+                          className="px-2.5 py-1 bg-white text-black font-semibold font-mono text-[9px] uppercase tracking-wider rounded hover:bg-white/90 transition-colors"
+                        >
+                          Repor
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>

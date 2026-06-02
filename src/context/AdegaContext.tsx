@@ -47,6 +47,9 @@ export interface StockItem {
   barcode?: string;
   recipe?: RecipeIngredient[];
   price_history?: { date: string; cost: number; sell: number }[];
+  is_returnable?: boolean;
+  deposit_fee?: number;
+  batches?: { lot_number: string; expiration_date: string; quantity: number }[];
 }
 
 export interface FixedCostItem {
@@ -67,6 +70,9 @@ export interface SaleItem {
     quantity: number;
     price_cost: number;
     price_sell: number;
+    returned_bottles_count?: number;
+    is_returnable?: boolean;
+    deposit_fee?: number;
   }[];
   total_amount: number;
   payment_method: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia";
@@ -91,6 +97,9 @@ export interface DebtItem {
     quantity: number;
     price_cost: number;
     price_sell: number;
+    returned_bottles_count?: number;
+    is_returnable?: boolean;
+    deposit_fee?: number;
   }[];
   date: string;
   status: "pending" | "settled";
@@ -105,6 +114,9 @@ export interface HeldCart {
     quantity: number;
     price_cost: number;
     price_sell: number;
+    is_returnable?: boolean;
+    deposit_fee?: number;
+    returned_bottles_count?: number;
   }[];
 }
 
@@ -127,8 +139,8 @@ interface AdegaContextType {
   // POS Session state
   isPosActive: boolean;
   setIsPosActive: (active: boolean) => void;
-  activeCart: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[];
-  setActiveCart: React.Dispatch<React.SetStateAction<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number }[]>>;
+  activeCart: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; is_returnable?: boolean; deposit_fee?: number; returned_bottles_count?: number }[];
+  setActiveCart: React.Dispatch<React.SetStateAction<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number; is_returnable?: boolean; deposit_fee?: number; returned_bottles_count?: number }[]>>;
   heldCarts: HeldCart[];
   setHeldCarts: React.Dispatch<React.SetStateAction<HeldCart[]>>;
 
@@ -146,11 +158,11 @@ interface AdegaContextType {
   deleteIdea: (id: string) => Promise<void>;
   
   // Stock actions
-  addStock: (name: string, quantity: number, status: StockItem["status"], priceCost?: string, priceSell?: string, barcode?: string) => Promise<boolean>;
+  addStock: (name: string, quantity: number, status: StockItem["status"], priceCost?: string, priceSell?: string, barcode?: string, isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"]) => Promise<boolean>;
   adjustStockQty: (id: string, amount: number) => Promise<void>;
   toggleStockStatus: (id: string) => Promise<void>;
   deleteStock: (id: string) => Promise<void>;
-  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[]) => Promise<boolean>;
+  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[], isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"]) => Promise<boolean>;
 
   // Fixed Cost actions
   addFixedCost: (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"], receipt?: string) => Promise<boolean>;
@@ -158,11 +170,11 @@ interface AdegaContextType {
   deleteFixedCost: (id: string) => Promise<void>;
 
   // Sales actions
-  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia", discountAmount?: number) => Promise<boolean>;
+  registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia", discountAmount?: number) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
   
   // Debt/Fiado actions
-  registerDebt: (customerName: string, items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[], discountAmount?: number) => Promise<boolean>;
+  registerDebt: (customerName: string, items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[], discountAmount?: number) => Promise<boolean>;
   settleDebt: (id: string, paymentMethod: "pix" | "dinheiro" | "credito" | "debito") => Promise<void>;
   renameDebtCustomer: (id: string, newName: string) => Promise<void>;
 
@@ -189,7 +201,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   // POS Session States (Persisted in global Context)
   const [isPosActive, setIsPosActive] = useState(false);
-  const [activeCart, setActiveCart] = useState<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number }[]>([]);
+  const [activeCart, setActiveCart] = useState<{ id: string; name: string; quantity: number; price_cost: number; price_sell: number; is_returnable?: boolean; deposit_fee?: number; returned_bottles_count?: number }[]>([]);
   const [heldCarts, setHeldCarts] = useState<HeldCart[]>([]);
 
   // Core Data States
@@ -777,12 +789,16 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     status: StockItem["status"],
     priceCost?: string,
     priceSell?: string,
-    barcode?: string
+    barcode?: string,
+    isReturnable?: boolean,
+    depositFee?: string,
+    batches?: StockItem["batches"]
   ): Promise<boolean> => {
     if (!name.trim() || quantity <= 0) return false;
 
     const parsedCost = priceCost ? parseFloat(priceCost.replace(",", ".")) : 0;
     const parsedSell = priceSell ? parseFloat(priceSell.replace(",", ".")) : 0;
+    const parsedDeposit = depositFee ? parseFloat(depositFee.replace(",", ".")) : 0;
 
     const newStock: StockItem = {
       id: `s-${Date.now()}`,
@@ -792,6 +808,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       price_cost: isNaN(parsedCost) ? 0 : parsedCost,
       price_sell: isNaN(parsedSell) ? 0 : parsedSell,
       barcode: barcode?.trim() || undefined,
+      is_returnable: isReturnable || undefined,
+      deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : undefined,
+      batches: batches || undefined
     };
 
     if (isCloudMode) {
@@ -895,13 +914,17 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     barcode?: string,
     name?: string,
     status?: StockItem["status"],
-    recipe?: RecipeIngredient[]
+    recipe?: RecipeIngredient[],
+    isReturnable?: boolean,
+    depositFee?: string,
+    batches?: StockItem["batches"]
   ): Promise<boolean> => {
     const item = stock.find((s) => s.id === id);
     if (!item) return false;
 
     const parsedCost = parseFloat(priceCost.replace(",", "."));
     const parsedSell = parseFloat(priceSell.replace(",", "."));
+    const parsedDeposit = depositFee ? parseFloat(depositFee.replace(",", ".")) : 0;
 
     if (isNaN(parsedCost) || isNaN(parsedSell)) return false;
 
@@ -929,7 +952,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       name: name ? name.trim() : item.name,
       status: status || item.status,
       recipe: recipe || null,
-      price_history: newHistory
+      price_history: newHistory,
+      is_returnable: isReturnable || null,
+      deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : null,
+      batches: batches || null
     };
 
     if (isCloudMode) {
@@ -958,7 +984,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
               name: name ? name.trim() : s.name,
               status: status || s.status,
               recipe: recipe || undefined,
-              price_history: newHistory
+              price_history: newHistory,
+              is_returnable: isReturnable || undefined,
+              deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : undefined,
+              batches: batches || undefined
             }
           : s
       )
@@ -1049,7 +1078,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   // Sales Actions
   const registerSale = async (
-    items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[],
+    items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[],
     paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia",
     discountAmount = 0
   ): Promise<boolean> => {
@@ -1066,7 +1095,16 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     const newSale: SaleItem = {
       id: `sale-${Date.now()}`,
-      items: items.map(i => ({ ...i, price_sell: isPersonalOrCortesia ? 0 : i.price_sell * discountRatio })),
+      items: items.map(i => ({ 
+        id: i.id,
+        name: i.name,
+        quantity: i.quantity,
+        price_cost: i.price_cost,
+        price_sell: isPersonalOrCortesia ? 0 : i.price_sell * discountRatio,
+        returned_bottles_count: i.returned_bottles_count,
+        is_returnable: i.is_returnable,
+        deposit_fee: i.deposit_fee
+      })),
       total_amount: parseFloat(totalAmount.toFixed(2)),
       payment_method: paymentMethod,
       profit: parseFloat(profit.toFixed(2)),
@@ -1124,7 +1162,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   // Debt/Fiado actions
   const registerDebt = async (
     customerName: string,
-    items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number }[],
+    items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[],
     discountAmount = 0
   ): Promise<boolean> => {
     if (!customerName.trim() || items.length === 0) return false;
@@ -1141,7 +1179,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         name: i.name,
         quantity: i.quantity,
         price_cost: i.price_cost,
-        price_sell: i.price_sell
+        price_sell: i.price_sell,
+        returned_bottles_count: i.returned_bottles_count,
+        is_returnable: i.is_returnable,
+        deposit_fee: i.deposit_fee
       })),
       date: new Date().toISOString(),
       status: "pending"

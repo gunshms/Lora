@@ -15,7 +15,8 @@ import {
   HelpCircle, 
   X,
   DollarSign,
-  Edit2
+  Edit2,
+  Share2
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,7 +28,8 @@ export default function EstoquePage() {
     adjustStockQty, 
     toggleStockStatus, 
     deleteStock,
-    updateStockPrices
+    updateStockPrices,
+    addCost
   } = useAdega();
 
   const [isAddingStock, setIsAddingStock] = useState(false);
@@ -56,6 +58,28 @@ export default function EstoquePage() {
   const [editBarcode, setEditBarcode] = useState("");
   const [editStatus, setEditStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
   
+  // Returnable and Batches edit states - Idea 1 & 2
+  const [editIsReturnable, setEditIsReturnable] = useState(false);
+  const [editDepositFee, setEditDepositFee] = useState("");
+  const [editBatches, setEditBatches] = useState<{ lot_number: string; expiration_date: string; quantity: number }[]>([]);
+  
+  // New lot addition states
+  const [newLotNumber, setNewLotNumber] = useState("");
+  const [newLotExpirationDate, setNewLotExpirationDate] = useState("");
+  const [newLotQuantity, setNewLotQuantity] = useState(1);
+
+  // Markup Calculator states - Idea 3
+  const [calcCustoBruto, setCalcCustoBruto] = useState("");
+  const [calcFrete, setCalcFrete] = useState("");
+  const [calcImpostos, setCalcImpostos] = useState("");
+  const [calcMargem, setCalcMargem] = useState("35"); // Default 35% margin
+
+  // XML Import states - Idea 4
+  const [isXmlModalOpen, setIsXmlModalOpen] = useState(false);
+  const [xmlFileName, setXmlFileName] = useState("");
+  const [xmlItems, setXmlItems] = useState<{ name: string; barcode: string; quantity: number; cost: number; matches_product_id?: string }[]>([]);
+  const [xmlTotalValue, setXmlTotalValue] = useState(0);
+
   // Recipe Composer states
   const [editRecipe, setEditRecipe] = useState<{ product_id: string; quantity: number }[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
@@ -87,6 +111,22 @@ export default function EstoquePage() {
     setEditRecipe(item.recipe || []);
     setSelectedIngredientId("");
     setIngredientQty("0.25");
+    
+    // Load returnable and batches
+    setEditIsReturnable(!!item.is_returnable);
+    setEditDepositFee(item.deposit_fee?.toString() || "");
+    setEditBatches(item.batches || []);
+
+    // Reset lot addition inputs
+    setNewLotNumber("");
+    setNewLotExpirationDate("");
+    setNewLotQuantity(1);
+
+    // Reset markup calc inputs
+    setCalcCustoBruto(item.price_cost?.toString() || "");
+    setCalcFrete("");
+    setCalcImpostos("");
+    setCalcMargem("35");
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -100,7 +140,10 @@ export default function EstoquePage() {
       editBarcode,
       editName,
       editStatus,
-      editRecipe
+      editRecipe,
+      editIsReturnable,
+      editDepositFee,
+      editBatches
     );
 
     if (success) {
@@ -129,8 +172,119 @@ export default function EstoquePage() {
     setSelectedIngredientId("");
   };
 
-  const handleRemoveIngredient = (prodId: string) => {
-    setEditRecipe(prev => prev.filter(ing => ing.product_id !== prodId));
+  const handleRemoveIngredient = (productId: string) => {
+    setEditRecipe(prev => prev.filter(ing => ing.product_id !== productId));
+  };
+
+  const handleXmlImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setXmlFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(event.target?.result as string, "application/xml");
+
+        // Parse Total Value
+        const vNFNode = xmlDoc.getElementsByTagName("vNF")[0];
+        const totalValue = vNFNode ? parseFloat(vNFNode.textContent || "0") : 0;
+        setXmlTotalValue(totalValue);
+
+        // Parse Items
+        const detNodes = xmlDoc.getElementsByTagName("det");
+        const itemsList: any[] = [];
+
+        for (let i = 0; i < detNodes.length; i++) {
+          const det = detNodes[i];
+          const xProdNode = det.getElementsByTagName("xProd")[0];
+          const cEANNode = det.getElementsByTagName("cEAN")[0];
+          const qComNode = det.getElementsByTagName("qCom")[0];
+          const vUnComNode = det.getElementsByTagName("vUnCom")[0];
+
+          const name = xProdNode ? xProdNode.textContent || "Produto Sem Nome" : "Produto Sem Nome";
+          const ean = cEANNode && cEANNode.textContent !== "SEM GTIN" ? cEANNode.textContent || "" : "";
+          const qty = qComNode ? parseFloat(qComNode.textContent || "1") : 1;
+          const cost = vUnComNode ? parseFloat(vUnComNode.textContent || "0") : 0;
+
+          // Fuzzy match on stock products
+          const matchedProduct = stock.find(s => 
+            (ean && s.barcode === ean) || 
+            s.name.toLowerCase().trim() === name.toLowerCase().trim()
+          );
+
+          itemsList.push({
+            name,
+            barcode: ean,
+            quantity: qty,
+            cost,
+            matches_product_id: matchedProduct?.id || undefined
+          });
+        }
+
+        setXmlItems(itemsList);
+        setIsXmlModalOpen(true);
+      } catch (err) {
+        alert("Erro ao ler ou processar o XML da Nota Fiscal. Verifique se o arquivo é um XML de NF-e válido.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmXmlImport = async () => {
+    setIsXmlModalOpen(false);
+    
+    // Add variable cost of the invoice to finances!
+    const noteDescription = `Entrada Nota (XML: ${xmlFileName.split(".xml")[0]})`;
+    await addCost(noteDescription, xmlTotalValue.toFixed(2), "melhor", true);
+
+    let successCount = 0;
+
+    for (const item of xmlItems) {
+      if (item.matches_product_id) {
+        // Update existing product quantity & cost!
+        const existingProduct = stock.find(s => s.id === item.matches_product_id);
+        if (existingProduct) {
+          const currentQty = existingProduct.quantity;
+          
+          await updateStockPrices(
+            existingProduct.id,
+            item.cost.toString(),
+            existingProduct.price_sell?.toString() || "0",
+            existingProduct.barcode,
+            existingProduct.name,
+            existingProduct.status,
+            existingProduct.recipe,
+            existingProduct.is_returnable,
+            existingProduct.deposit_fee?.toString() || "",
+            existingProduct.batches
+          );
+
+          // Update actual quantity count
+          await adjustStockQty(existingProduct.id, item.quantity);
+          successCount++;
+        }
+      } else {
+        // Create new planned stock product
+        await addStock(
+          item.name,
+          item.quantity,
+          "planned",
+          item.cost.toString(),
+          "0",
+          item.barcode
+        );
+        successCount++;
+      }
+    }
+
+    alert(`Sucesso! Nota fiscal processada: ${successCount} produtos importados/atualizados e custo de ${formatCurrency(xmlTotalValue)} registrado.`);
+    
+    // Reset file input
+    const inputElement = document.getElementById("xml-upload-input") as HTMLInputElement;
+    if (inputElement) inputElement.value = "";
   };
 
   const statusConfigs = {
@@ -168,13 +322,44 @@ export default function EstoquePage() {
           </h2>
         </div>
 
-        <button 
-          onClick={() => setIsAddingStock(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar Item
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => {
+              const url = `${window.location.origin}/the-best/catalogo`;
+              navigator.clipboard.writeText(url);
+              alert("Link do Cardápio Online copiado para a área de transferência!");
+            }}
+            className="flex items-center gap-2 px-4 py-2 border border-white/10 bg-white/5 text-white/80 font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/10 hover:text-white transition-all duration-300"
+            title="Copiar link para o cardápio público"
+          >
+            <Share2 className="w-4 h-4 text-amber-400 animate-pulse" />
+            Copiar Cardápio
+          </button>
+
+          {/* Hidden XML input - Idea 4 */}
+          <input 
+            type="file" 
+            id="xml-upload-input" 
+            accept=".xml" 
+            className="hidden" 
+            onChange={handleXmlImport} 
+          />
+          <label 
+            htmlFor="xml-upload-input"
+            className="flex items-center gap-2 px-4 py-2 border border-emerald-500/20 bg-emerald-950/10 text-emerald-400 font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-emerald-500/20 cursor-pointer transition-all duration-300"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Importar XML
+          </label>
+
+          <button 
+            onClick={() => setIsAddingStock(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Item
+          </button>
+        </div>
       </div>
 
       {/* Info Warning Bar */}
@@ -219,9 +404,51 @@ export default function EstoquePage() {
                       <div className="p-2 rounded bg-white/[0.02] border border-white/5 text-amber-400">
                         <Beer className="w-5 h-5" />
                       </div>
-                      <span className="font-semibold text-base text-white/95 leading-tight tracking-wide group-hover:text-white transition-colors">
-                        {item.name}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="font-semibold text-base text-white/95 leading-tight tracking-wide group-hover:text-white transition-colors block">
+                          {item.name}
+                        </span>
+                        
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {/* Returnable Badge */}
+                          {item.is_returnable && (
+                            <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-amber-500/10 text-amber-400 border border-amber-400/20">
+                              Retornável (Vasco: {formatCurrency(item.deposit_fee)})
+                            </span>
+                          )}
+
+                          {/* Expiration warning indicator */}
+                          {(() => {
+                            if (!item.batches || item.batches.length === 0) return null;
+                            const now = new Date();
+                            const expired = item.batches.some(b => new Date(b.expiration_date) <= now);
+                            const soon = item.batches.some(b => {
+                              const exp = new Date(b.expiration_date);
+                              const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                              return diffDays > 0 && diffDays <= 30;
+                            });
+
+                            if (expired) {
+                              return (
+                                <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/25 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.15)]">
+                                  Vencido ⚠️
+                                </span>
+                              );
+                            } else if (soon) {
+                              return (
+                                <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                                  Vence Breve ⏳
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Validade Ok ✅
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </div>
 
                     <button 
@@ -428,6 +655,139 @@ export default function EstoquePage() {
                     </div>
                   </div>
 
+                  {/* RETORNÁVEIS - Idea 1 */}
+                  <div className="border-t border-white/5 pt-5 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-headline font-bold text-white uppercase tracking-wider">Garrafa Retornável?</h4>
+                        <p className="text-[10px] font-mono text-white/35 uppercase">Exige devolução de casco vazio no PDV</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditIsReturnable(!editIsReturnable)}
+                        className={`px-3 py-1.5 rounded text-[10px] font-mono uppercase font-bold border transition-colors ${
+                          editIsReturnable 
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                            : "bg-white/5 border-white/5 text-white/40"
+                        }`}
+                      >
+                        {editIsReturnable ? "Sim" : "Não"}
+                      </button>
+                    </div>
+
+                    {editIsReturnable && (
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor de Depósito do Casco (R$)</label>
+                        <input 
+                          type="text"
+                          value={editDepositFee}
+                          onChange={(e) => setEditDepositFee(e.target.value)}
+                          placeholder="Ex: 2,00"
+                          className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CALCULADORA DE PRECIFICAÇÃO (MARKUP & ICMS-ST) - Idea 3 */}
+                  <div className="border-t border-white/5 pt-5 space-y-3">
+                    <details className="group">
+                      <summary className="list-none flex items-center justify-between cursor-pointer focus:outline-none">
+                        <div className="space-y-0.5">
+                          <h4 className="text-xs font-headline font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                            Precificação Inteligente (ST/Markup)
+                          </h4>
+                          <p className="text-[10px] font-mono text-white/35 uppercase">Calcule margem real embutindo impostos e custos</p>
+                        </div>
+                        <span className="text-xs font-mono text-white/30 group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+
+                      <div className="space-y-4 pt-4 mt-2 border-t border-white/5 animate-fade-in">
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono uppercase text-white/40 block">Custo Nota (R$)</label>
+                            <input 
+                              type="text" 
+                              value={calcCustoBruto} 
+                              onChange={(e) => setCalcCustoBruto(e.target.value)} 
+                              placeholder="0,00"
+                              className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono uppercase text-white/40 block">Frete Rateado (R$)</label>
+                            <input 
+                              type="text" 
+                              value={calcFrete} 
+                              onChange={(e) => setCalcFrete(e.target.value)} 
+                              placeholder="0,00"
+                              className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono uppercase text-white/40 block">ICMS-ST / IPI (%)</label>
+                            <input 
+                              type="text" 
+                              value={calcImpostos} 
+                              onChange={(e) => setCalcImpostos(e.target.value)} 
+                              placeholder="Ex: 10"
+                              className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono uppercase text-white/40 block">Margem Líquida (%)</label>
+                            <input 
+                              type="text" 
+                              value={calcMargem} 
+                              onChange={(e) => setCalcMargem(e.target.value)} 
+                              placeholder="Ex: 35"
+                              className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Calculated Results Panel */}
+                        {(() => {
+                          const base = parseFloat(calcCustoBruto.replace(",", ".")) || 0;
+                          const frete = parseFloat(calcFrete.replace(",", ".")) || 0;
+                          const impPercent = parseFloat(calcImpostos.replace(",", ".")) || 0;
+                          const margem = parseFloat(calcMargem.replace(",", ".")) || 35;
+
+                          const custoTotal = base + frete;
+                          const custoEfetivo = custoTotal * (1 + impPercent / 100);
+                          const margemRatio = 1 - (margem / 100);
+                          const precoSugerido = margemRatio > 0 ? custoEfetivo / margemRatio : custoEfetivo;
+
+                          return (
+                            <div className="bg-black/80 border border-white/5 p-3 rounded-lg space-y-2 text-[10px] font-mono uppercase">
+                              <div className="flex justify-between text-white/40">
+                                <span>Custo Efetivo c/ ST:</span>
+                                <span className="font-bold text-white">{formatCurrency(custoEfetivo)}</span>
+                              </div>
+                              <div className="flex justify-between text-emerald-400">
+                                <span>Preço Venda Sugerido:</span>
+                                <span className="font-bold">{formatCurrency(precoSugerido)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditCost(custoEfetivo.toFixed(2).replace(".", ","));
+                                  setEditSell(precoSugerido.toFixed(2).replace(".", ","));
+                                }}
+                                className="w-full mt-2 py-1.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 font-bold hover:bg-emerald-500/20 rounded transition-colors text-center text-[9px]"
+                              >
+                                Aplicar Valores Calculados
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </details>
+                  </div>
+
                   {/* CUSTOM RECIPE / COMBO COMPOSER SECTION */}
                   <div className="border-t border-white/5 pt-5 space-y-4">
                     <div className="space-y-0.5">
@@ -497,6 +857,110 @@ export default function EstoquePage() {
                     </div>
                   </div>
 
+                  {/* LOTES E VALIDADES - Idea 2 */}
+                  <div className="border-t border-white/5 pt-5 space-y-4">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-headline font-bold text-white uppercase tracking-wider">Lotes & Validades</h4>
+                      <p className="text-[10px] font-mono text-white/35 uppercase">Gerencie datas de vencimento deste produto</p>
+                    </div>
+
+                    {/* Active batches list */}
+                    {editBatches.length > 0 ? (
+                      <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                        {editBatches.map((batch, idx) => {
+                          const now = new Date();
+                          const expDate = new Date(batch.expiration_date + "T12:00:00");
+                          const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          const isExpired = expDate <= now;
+                          const isSoon = diffDays > 0 && diffDays <= 30;
+
+                          return (
+                            <div key={idx} className="flex justify-between items-center bg-black/40 border border-white/5 p-2 rounded-lg text-[10px] font-mono">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-white">Lote: {batch.lot_number || "S/N"}</span>
+                                  <span className={`px-1.5 py-0.2 rounded text-[7px] border font-bold uppercase ${
+                                    isExpired 
+                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/25 animate-pulse" 
+                                      : isSoon 
+                                      ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
+                                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                  }`}>
+                                    {isExpired ? "Vencido ⚠️" : isSoon ? "Vence Breve" : "Ok"}
+                                  </span>
+                                </div>
+                                <span className="text-white/40 block">Vencimento: {new Date(batch.expiration_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+                                <span className="text-white/40 block">Qtd Lote: {batch.quantity} un</span>
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={() => {
+                                  setEditBatches(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                title="Excluir lote"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 bg-black/20 border border-dashed border-white/5 rounded-lg text-[10px] font-mono uppercase text-white/30">
+                        Nenhum lote registrado para controle de validade.
+                      </div>
+                    )}
+
+                    {/* Add new batch form inputs */}
+                    <div className="bg-black/30 border border-white/5 p-3 rounded-xl space-y-3">
+                      <span className="text-[9px] font-mono uppercase text-white/40 tracking-wider block">Registrar Novo Lote</span>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <input 
+                          type="text"
+                          value={newLotNumber}
+                          onChange={(e) => setNewLotNumber(e.target.value)}
+                          placeholder="Nº Lote"
+                          className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-white focus:outline-none placeholder-white/20"
+                        />
+                        <input 
+                          type="date"
+                          value={newLotExpirationDate}
+                          onChange={(e) => setNewLotExpirationDate(e.target.value)}
+                          className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-white focus:outline-none"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs items-center">
+                        <span className="text-[10px] font-mono text-white/40 uppercase">Qtd do Lote:</span>
+                        <input 
+                          type="number"
+                          value={newLotQuantity}
+                          onChange={(e) => setNewLotQuantity(parseInt(e.target.value) || 1)}
+                          min="1"
+                          className="bg-black border border-white/10 rounded px-2.5 py-1 text-center font-mono focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!newLotExpirationDate}
+                        onClick={() => {
+                          const parsedQty = newLotQuantity || 1;
+                          setEditBatches(prev => [...prev, {
+                            lot_number: newLotNumber.trim(),
+                            expiration_date: newLotExpirationDate,
+                            quantity: parsedQty
+                          }]);
+                          setNewLotNumber("");
+                          setNewLotExpirationDate("");
+                          setNewLotQuantity(1);
+                        }}
+                        className="w-full py-1.5 bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 text-[10px] uppercase font-bold font-mono tracking-wider rounded-lg transition-colors"
+                      >
+                        Adicionar Lote
+                      </button>
+                    </div>
+                  </div>
+
                   {/* HISTÓRICO DE REAJUSTES (INFLAÇÃO) - Idea 5 */}
                   {editingProduct.price_history && editingProduct.price_history.length > 0 && (
                     <div className="border-t border-white/5 pt-5 space-y-4">
@@ -560,7 +1024,144 @@ export default function EstoquePage() {
           </div>
         )}
       </AnimatePresence>
+ 
+      {/* XML DANFE Preview Modal - Idea 4 */}
+      <AnimatePresence>
+        {isXmlModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="w-full max-w-2xl bg-[#09090b] border border-emerald-500/20 rounded-2xl p-6 shadow-[0_0_60px_rgba(16,185,129,0.1)] relative overflow-hidden max-h-[85vh] flex flex-col justify-between"
+            >
+              {/* Top ambient glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-12 bg-emerald-500/10 blur-xl rounded-full" />
 
+              <div>
+                <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                      <ShoppingBag className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-headline font-black text-sm tracking-wider text-white uppercase">
+                        REVISÃO DE IMPORTAÇÃO XML
+                      </h3>
+                      <p className="text-[10px] font-mono text-white/40 uppercase mt-0.5">
+                        Arquivo: {xmlFileName}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setIsXmlModalOpen(false);
+                      const inputElement = document.getElementById("xml-upload-input") as HTMLInputElement;
+                      if (inputElement) inputElement.value = "";
+                    }}
+                    className="p-1 rounded text-white/40 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Warning message */}
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[10px] font-mono uppercase text-amber-400 flex items-start gap-2.5 leading-relaxed mb-4">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Atenção: Os produtos correspondentes com código de barras ou nome idêntico no estoque serão atualizados (custo atualizado e quantidade adicionada). Novos produtos não localizados serão inseridos no estoque como &quot;Planejado&quot;.
+                  </span>
+                </div>
+
+                {/* Items List Table */}
+                <div className="overflow-y-auto max-h-[40vh] border border-white/5 rounded-lg bg-black/40 pr-1">
+                  <table className="w-full text-[10px] font-mono uppercase text-white/60">
+                    <thead>
+                      <tr className="border-b border-white/5 text-[9px] text-white/40 text-left bg-white/[0.02]">
+                        <th className="py-2.5 px-3">Produto XML / EAN</th>
+                        <th className="py-2.5 px-3 text-center">Qtd</th>
+                        <th className="py-2.5 px-3 text-right">Custo Un</th>
+                        <th className="py-2.5 px-3 text-center">Ação / Vínculo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {xmlItems.map((item, idx) => {
+                        const isMatched = !!item.matches_product_id;
+                        const matchingItem = stock.find(s => s.id === item.matches_product_id);
+                        
+                        return (
+                          <tr key={idx} className="hover:bg-white/[0.01] transition-colors">
+                            <td className="py-3 px-3 max-w-[240px]">
+                              <span className="font-bold text-white block truncate">{item.name}</span>
+                              <span className="text-[9px] text-white/30 block mt-0.5">
+                                EAN: {item.barcode || "NÃO CADASTRADO"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-center text-white font-bold">{item.quantity}</td>
+                            <td className="py-3 px-3 text-right text-white font-bold">{formatCurrency(item.cost)}</td>
+                            <td className="py-3 px-3 text-center">
+                              {isMatched ? (
+                                <span className="inline-block px-2 py-0.5 rounded text-[8px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                  Vincular: {matchingItem?.name}
+                                </span>
+                              ) : (
+                                <span className="inline-block px-2 py-0.5 rounded text-[8px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  Novo Item Estoque
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Bottom Summary Section */}
+              <div className="mt-5 space-y-4 pt-4 border-t border-white/5">
+                <div className="flex justify-between items-center bg-white/[0.02] p-3 rounded-lg border border-white/5">
+                  <div>
+                    <span className="text-[9px] font-mono uppercase text-white/40 block">Total do Custo da Nota</span>
+                    <span className="text-xl font-headline font-black text-emerald-400 mt-0.5 block">
+                      {formatCurrency(xmlTotalValue)}
+                    </span>
+                  </div>
+                  
+                  <div className="text-right">
+                    <span className="text-[9px] font-mono uppercase text-white/40 block">Total de Itens</span>
+                    <span className="text-xl font-headline font-black text-white mt-0.5 block">
+                      {xmlItems.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setIsXmlModalOpen(false);
+                      const inputElement = document.getElementById("xml-upload-input") as HTMLInputElement;
+                      if (inputElement) inputElement.value = "";
+                    }}
+                    className="flex-1 py-3 border border-white/10 hover:border-white/20 text-white font-headline font-bold text-[10px] tracking-wider rounded uppercase transition-colors"
+                  >
+                    Descartar Nota
+                  </button>
+
+                  <button
+                    onClick={handleConfirmXmlImport}
+                    className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-headline font-bold text-[10px] tracking-wider rounded uppercase transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_35px_rgba(16,185,129,0.35)]"
+                  >
+                    Confirmar Entrada
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+ 
     </div>
   );
 }

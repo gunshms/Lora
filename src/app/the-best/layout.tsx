@@ -424,6 +424,7 @@ function PageLoadingSkeleton() {
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
   const { mounted, currentUser, login, logout, auditLog, clearAuditLog } = useAdega();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAuditDrawer, setShowAuditDrawer] = useState(false);
 
@@ -434,6 +435,15 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
   if (!mounted) {
     return <PageLoadingSkeleton />;
+  }
+
+  // Bypassed for the public catalogo!
+  if (pathname === "/the-best/catalogo") {
+    return (
+      <div className="min-h-screen bg-[#050505] text-[#F2F0E9] font-body selection:bg-white selection:text-black">
+        {children}
+      </div>
+    );
   }
 
   // Gatekeeper: If no active user session, block dashboard and display login portal

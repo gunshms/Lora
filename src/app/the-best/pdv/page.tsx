@@ -30,6 +30,9 @@ interface CartItem {
   quantity: number;
   price_cost: number;
   price_sell: number;
+  is_returnable?: boolean;
+  deposit_fee?: number;
+  returned_bottles_count?: number;
 }
 
 export default function PdvPage() {
@@ -77,6 +80,8 @@ export default function PdvPage() {
   const [isClosingSession, setIsClosingSession] = useState(false);
   const [sessionRevenue, setSessionRevenue] = useState(0);
 
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
   // Filter & Search stock
   const filteredProducts = useMemo(() => {
     return stock.filter(item => 
@@ -87,7 +92,13 @@ export default function PdvPage() {
 
   // Totals calculations
   const subtotalAmount = useMemo(() => {
-    return activeCart.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
+    return activeCart.reduce((sum, item) => {
+      const baseTotal = item.price_sell * item.quantity;
+      const depositCharge = item.is_returnable 
+        ? Math.max(0, item.quantity - (item.returned_bottles_count || 0)) * (item.deposit_fee || 0)
+        : 0;
+      return sum + baseTotal + depositCharge;
+    }, 0);
   }, [activeCart]);
 
   const parsedDiscount = useMemo(() => {
@@ -131,6 +142,15 @@ export default function PdvPage() {
       return;
     }
 
+    // Check expiration if batches exist - Idea 2
+    if (product.batches && product.batches.length > 0) {
+      const allExpired = product.batches.every(b => new Date(b.expiration_date) <= new Date());
+      if (allExpired) {
+        alert("Bloqueado: Todos os lotes deste produto no estoque estão VENCIDOS!");
+        return;
+      }
+    }
+
     setActiveCart((prev) => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -147,7 +167,10 @@ export default function PdvPage() {
           name: product.name,
           quantity: 1,
           price_cost: product.price_cost || 0,
-          price_sell: product.price_sell || 0
+          price_sell: product.price_sell || 0,
+          is_returnable: product.is_returnable,
+          deposit_fee: product.deposit_fee,
+          returned_bottles_count: product.is_returnable ? 0 : undefined
         }
       ];
     });
@@ -259,6 +282,74 @@ export default function PdvPage() {
       setIsSuccessOpen(true);
     }
   };
+
+  // Keyboard shortcut listener - Idea 5
+  useEffect(() => {
+    if (!isPosActive) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isInputFocused = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement || document.activeElement instanceof HTMLSelectElement;
+
+      // Global shortcuts
+      if (e.key === "F2") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === "F8") {
+        if (activeCart.length > 0) {
+          e.preventDefault();
+          setIsCheckoutOpen(true);
+        }
+      } else if (e.key === "F9") {
+        if (window.confirm("Deseja realmente esvaziar todo o carrinho atual?")) {
+          e.preventDefault();
+          setActiveCart([]);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setIsCheckoutOpen(false);
+        setAdjustingProduct(null);
+      }
+
+      // Checkout drawer specific shortcuts (only if drawer is open)
+      if (isCheckoutOpen) {
+        const keyUpper = e.key.toUpperCase();
+        if (!isInputFocused) {
+          if (keyUpper === "P") {
+            e.preventDefault();
+            setPaymentMethod("pix");
+          } else if (keyUpper === "D") {
+            e.preventDefault();
+            setPaymentMethod("dinheiro");
+          } else if (keyUpper === "C") {
+            e.preventDefault();
+            setPaymentMethod("credito");
+          } else if (keyUpper === "V" || keyUpper === "E") {
+            e.preventDefault();
+            setPaymentMethod("debito");
+          } else if (keyUpper === "F") {
+            e.preventDefault();
+            setPaymentMethod("fiado");
+          }
+        }
+
+        if (e.key === "Enter") {
+          // If in money method and change calculation is ready or other methods
+          const isButtonBlocked = 
+            (paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)) ||
+            (paymentMethod === "fiado" && (!debtCustomerName.trim() || activeCustomerDebt >= 150));
+
+          if (!isButtonBlocked) {
+            e.preventDefault();
+            handleCheckoutSubmit();
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPosActive, isCheckoutOpen, activeCart, paymentMethod, receivedAmount, changeAmount, debtCustomerName, activeCustomerDebt]);
 
   // Cash Closeout Register summary
   const handleCloseSessionSubmit = () => {
@@ -376,10 +467,11 @@ export default function PdvPage() {
           <div className="relative">
             <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-white/30" />
             <input 
+              ref={searchInputRef}
               type="text" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por bebida, código de barras..."
+              placeholder="Buscar por bebida, código de barras... [Atalho: F2]"
               className="w-full pl-10 pr-4 py-3 bg-[#0b0b0d] border border-white/5 rounded-xl focus:border-white/20 focus:outline-none text-white text-sm placeholder-white/30 transition-all font-mono"
             />
             {searchTerm && (
@@ -510,9 +602,56 @@ export default function PdvPage() {
                   >
                     <div className="space-y-0.5 flex-1 min-w-0">
                       <h4 className="text-xs font-medium text-white/95 truncate">{item.name}</h4>
-                      <span className="text-[10px] font-mono text-white/40 block">
-                        {formatCurrency(item.price_sell)} c/u
-                      </span>
+                      <div className="flex flex-wrap items-center gap-x-2">
+                        <span className="text-[10px] font-mono text-white/40 block">
+                          {formatCurrency(item.price_sell)} c/u
+                        </span>
+                        {item.is_returnable && (
+                          <span className="text-[9px] font-mono text-amber-400 font-semibold border border-amber-400/20 bg-amber-400/5 px-1 rounded">
+                            Retornável
+                          </span>
+                        )}
+                      </div>
+                      
+                      {item.is_returnable && (
+                        <div className="flex items-center gap-1 mt-1 text-[9px] font-mono text-amber-400/80">
+                          <span>Devolveu Casco:</span>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActiveCart(prev => prev.map(c => 
+                                c.id === item.id 
+                                  ? { ...c, returned_bottles_count: Math.max(0, (c.returned_bottles_count || 0) - 1) } 
+                                  : c
+                              ));
+                            }}
+                            className="px-1 rounded bg-white/5 hover:bg-white/10 text-white"
+                            title="Remover casco devolvido"
+                          >
+                            -
+                          </button>
+                          <span className="font-bold text-white px-0.5">{item.returned_bottles_count || 0}</span>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActiveCart(prev => prev.map(c => 
+                                c.id === item.id 
+                                  ? { ...c, returned_bottles_count: Math.min(c.quantity, (c.returned_bottles_count || 0) + 1) } 
+                                  : c
+                              ));
+                            }}
+                            className="px-1 rounded bg-white/5 hover:bg-white/10 text-white"
+                            title="Adicionar casco devolvido"
+                          >
+                            +
+                          </button>
+                          {item.quantity - (item.returned_bottles_count || 0) > 0 && (
+                            <span className="text-white/40 font-semibold ml-1">
+                              (+{formatCurrency((item.quantity - (item.returned_bottles_count || 0)) * (item.deposit_fee || 0))})
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -597,7 +736,7 @@ export default function PdvPage() {
               onClick={() => setIsCheckoutOpen(true)}
               className="w-full py-3 bg-white hover:bg-white/90 disabled:opacity-30 disabled:hover:bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/5"
             >
-              Finalizar Compra
+              Finalizar Compra [F8]
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -682,11 +821,11 @@ export default function PdvPage() {
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block font-bold">Forma de Pagamento</label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { id: "pix", label: "Pix" },
-                        { id: "dinheiro", label: "Dinheiro" },
-                        { id: "credito", label: "Crédito" },
-                        { id: "debito", label: "Débito" },
-                        { id: "fiado", label: "Fiado" },
+                        { id: "pix", label: "Pix [P]" },
+                        { id: "dinheiro", label: "Dinheiro [D]" },
+                        { id: "credito", label: "Crédito [C]" },
+                        { id: "debito", label: "Débito [E]" },
+                        { id: "fiado", label: "Fiado [F]" },
                         { id: "consumo_oliveira", label: "Consumo Oliveira" },
                         { id: "consumo_marques", label: "Consumo Marques" },
                         { id: "cortesia", label: "Cortesia" }

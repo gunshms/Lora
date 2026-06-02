@@ -163,6 +163,11 @@ export default function VendasPage() {
     // Net Profit split (excludes partner consumptions, which are deducted post-split, but includes courtesy COGS)
     const netProfit = revenue - normalCogs - cortesiaCogs - fixed - variables;
 
+    // Returned and pending returnable cascos metrics - Idea 1
+    const totalReturnedCascos = generalSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.returned_bottles_count || 0), 0), 0);
+    const totalReturnableQty = generalSales.reduce((sum, s) => sum + s.items.reduce((itemSum, item) => itemSum + (item.is_returnable ? item.quantity : 0), 0), 0);
+    const pendingCascos = Math.max(0, totalReturnableQty - totalReturnedCascos);
+
     return {
       revenue,
       cogs: normalCogs,
@@ -173,7 +178,10 @@ export default function VendasPage() {
       variables,
       netProfit,
       salesCount: generalSales.filter(s => s.payment_method !== "cortesia").length,
-      totalSalesCount: monthlySales.length
+      totalSalesCount: monthlySales.length,
+      totalReturnedCascos,
+      totalReturnableQty,
+      pendingCascos
     };
   }, [sales, fixedCosts, costs, activeYear, activeMonth]);
 
@@ -729,6 +737,15 @@ export default function VendasPage() {
                 A amortização de parcelas passadas ocorre de forma transparente sobre o mês correspondente da compra, preservando lucros futuros.
               </p>
             </div>
+
+            {monthlyMetrics.pendingCascos > 0 && (
+              <div className="flex items-start gap-2 pt-2.5 border-t border-white/5 mt-2 bg-amber-500/5 p-2.5 rounded-lg border border-amber-500/10">
+                <Wine className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div className="text-[8px] font-mono text-amber-400 leading-relaxed uppercase">
+                  <span className="font-bold">Aviso de Vasilhames:</span> Existem <span className="text-white font-bold">{monthlyMetrics.pendingCascos} cascos/garrafas</span> retornáveis pendentes com clientes este mês (Devolvidos: {monthlyMetrics.totalReturnedCascos} / Vendidos: {monthlyMetrics.totalReturnableQty}).
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -50,6 +50,7 @@ export default function EstoquePage() {
   const [priceCost, setPriceCost] = useState("");
   const [priceSell, setPriceSell] = useState("");
   const [barcode, setBarcode] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
 
   // Form inputs (Editing)
   const [editName, setEditName] = useState("");
@@ -57,6 +58,7 @@ export default function EstoquePage() {
   const [editSell, setEditSell] = useState("");
   const [editBarcode, setEditBarcode] = useState("");
   const [editStatus, setEditStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
+  const [editImageUrl, setEditImageUrl] = useState("");
   
   // Returnable and Batches edit states - Idea 1 & 2
   const [editIsReturnable, setEditIsReturnable] = useState(false);
@@ -89,7 +91,7 @@ export default function EstoquePage() {
     e.preventDefault();
     if (!stockName.trim() || stockQty <= 0) return;
 
-    const success = await addStock(stockName, stockQty, stockStatus, priceCost, priceSell, barcode);
+    const success = await addStock(stockName, stockQty, stockStatus, priceCost, priceSell, barcode, false, "", [], imageUrl);
     if (success) {
       setStockName("");
       setStockQty(1);
@@ -97,6 +99,7 @@ export default function EstoquePage() {
       setPriceCost("");
       setPriceSell("");
       setBarcode("");
+      setImageUrl("");
       setIsAddingStock(false);
     }
   };
@@ -108,6 +111,7 @@ export default function EstoquePage() {
     setEditSell(item.price_sell?.toString() || "");
     setEditBarcode(item.barcode || "");
     setEditStatus(item.status);
+    setEditImageUrl(item.image_url || "");
     setEditRecipe(item.recipe || []);
     setSelectedIngredientId("");
     setIngredientQty("0.25");
@@ -143,7 +147,8 @@ export default function EstoquePage() {
       editRecipe,
       editIsReturnable,
       editDepositFee,
-      editBatches
+      editBatches,
+      editImageUrl
     );
 
     if (success) {
@@ -384,35 +389,45 @@ export default function EstoquePage() {
             return (
               <div 
                 key={item.id} 
-                className="bg-[#0b0b0d] border border-white/5 rounded-xl p-6 relative overflow-hidden group flex flex-col justify-between min-h-[190px] hover:border-white/10 transition-all duration-300"
+                className="bg-[#0b0b0d] border border-white/5 rounded-xl p-5 relative overflow-hidden group flex flex-col sm:flex-row gap-5 hover:border-white/10 transition-all duration-300 min-h-[170px]"
               >
                 {/* Decorative Wave Background Watermark */}
-                <div className="absolute right-[-10px] bottom-[-10px] w-24 h-24 opacity-[0.02] pointer-events-none group-hover:scale-110 group-hover:rotate-3 transition-all duration-700 select-none">
+                <div className="absolute right-[-10px] bottom-[-10px] w-20 h-20 opacity-[0.02] pointer-events-none group-hover:scale-110 group-hover:rotate-3 transition-all duration-700 select-none">
                   <Image 
                     src="/adega/crest_white.png" 
                     alt="Wave watermark" 
-                    width={96} 
-                    height={96} 
+                    width={80} 
+                    height={80} 
                     className="object-contain invert"
                   />
                 </div>
 
-                {/* Card Top: Title & Status */}
-                <div className="space-y-4 relative z-10 flex-1">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded bg-white/[0.02] border border-white/5 text-amber-400">
-                        <Beer className="w-5 h-5" />
-                      </div>
-                      <div className="space-y-1">
-                        <span className="font-semibold text-base text-white/95 leading-tight tracking-wide group-hover:text-white transition-colors block">
+                {/* Left Side: Large Premium Product Image Frame */}
+                <div className="w-full sm:w-28 h-28 sm:h-28 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center p-2 flex-shrink-0 relative overflow-hidden group-hover:border-amber-500/20 transition-all duration-300">
+                  {item.image_url ? (
+                    <img 
+                      src={item.image_url} 
+                      alt={item.name} 
+                      className="w-full h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <Beer className="w-10 h-10 text-white/20" />
+                  )}
+                </div>
+
+                {/* Right Side: Product Details & Controls */}
+                <div className="flex-1 flex flex-col justify-between space-y-4 relative z-10 min-w-0">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <span className="font-headline font-bold text-sm tracking-wide text-white leading-tight group-hover:text-white transition-colors block truncate uppercase">
                           {item.name}
                         </span>
                         
                         <div className="flex flex-wrap gap-1 mt-1">
                           {/* Returnable Badge */}
                           {item.is_returnable && (
-                            <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-amber-500/10 text-amber-400 border border-amber-400/20">
+                            <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-400/20">
                               Retornável (Vasco: {formatCurrency(item.deposit_fee)})
                             </span>
                           )}
@@ -430,101 +445,100 @@ export default function EstoquePage() {
 
                             if (expired) {
                               return (
-                                <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/25 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.15)]">
+                                <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/25 animate-pulse">
                                   Vencido ⚠️
                                 </span>
                               );
                             } else if (soon) {
                               return (
-                                <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                                <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-amber-500/10 text-amber-400 border border-amber-500/25">
                                   Vence Breve ⏳
                                 </span>
                               );
                             }
                             return (
-                              <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                                 Validade Ok ✅
                               </span>
                             );
                           })()}
                         </div>
                       </div>
+
+                      <button 
+                        onClick={() => toggleStockStatus(item.id)}
+                        className={`px-2 py-0.5 text-[8px] font-mono uppercase tracking-wider rounded border font-semibold flex-shrink-0 transition-all duration-300 ${config.styles}`}
+                        title="Clique para mudar status"
+                      >
+                        {config.label}
+                      </button>
                     </div>
 
-                    <button 
-                      onClick={() => toggleStockStatus(item.id)}
-                      className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded border font-semibold transition-all duration-300 ${config.styles}`}
-                      title="Clique para mudar status"
-                    >
-                      {config.label}
-                    </button>
-                  </div>
-
-                  {/* Pricing info */}
-                  <div className="grid grid-cols-2 gap-4 py-2 border-t border-b border-white/5 text-[11px] font-mono uppercase text-white/40">
-                    <div>
-                      <span>Preço Custo</span>
-                      <span className="block text-white font-bold mt-0.5">{formatCurrency(item.price_cost)}</span>
-                    </div>
-                    <div>
-                      <span>Preço Venda</span>
-                      <span className="block text-emerald-400 font-bold mt-0.5">{formatCurrency(item.price_sell)}</span>
+                    {/* Pricing info */}
+                    <div className="grid grid-cols-2 gap-4 py-1.5 border-t border-b border-white/5 text-[9px] font-mono uppercase text-white/40">
+                      <div>
+                        <span>Custo</span>
+                        <span className="block text-white font-bold mt-0.5">{formatCurrency(item.price_cost)}</span>
+                      </div>
+                      <div>
+                        <span>Venda</span>
+                        <span className="block text-emerald-400 font-bold mt-0.5">{formatCurrency(item.price_sell)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Card Bottom: Quantity adjustments & delete */}
-                <div className="flex items-center justify-between pt-4 mt-4 relative z-10">
-                  
-                  {/* Quantity controls */}
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => adjustStockQty(item.id, -1)}
-                      className="p-1 rounded text-white/30 hover:text-white transition-colors"
-                      title="Diminuir"
-                    >
-                      <MinusCircle className="w-5 h-5" />
-                    </button>
-                    
-                    <span className="font-mono text-xl font-bold text-white min-w-[24px] text-center">
-                      {item.quantity}
-                    </span>
+                  {/* Quantity adjustments & Actions */}
+                  <div className="flex items-center justify-between pt-1">
+                    {/* Quantity controls */}
+                    <div className="flex items-center gap-2 bg-black/30 border border-white/5 rounded-lg px-2 py-0.5">
+                      <button 
+                        onClick={() => adjustStockQty(item.id, -1)}
+                        className="p-0.5 rounded text-white/40 hover:text-white transition-colors"
+                        title="Diminuir"
+                      >
+                        <MinusCircle className="w-4 h-4" />
+                      </button>
+                      
+                      <span className="font-mono text-xs font-bold text-white min-w-[18px] text-center">
+                        {item.quantity}
+                      </span>
 
-                    <button 
-                      onClick={() => adjustStockQty(item.id, 1)}
-                      className="p-1 rounded text-white/30 hover:text-white transition-colors"
-                      title="Aumentar"
-                    >
-                      <PlusCircle className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Action buttons (Edit & Delete) */}
-                  <div className="flex items-center gap-1.5">
-                    {(item.status === "urgent" || item.quantity < 5) && (
-                      <Link 
-                        href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}`}
-                        className="p-1.5 rounded hover:bg-emerald-500/10 text-emerald-400 transition-colors"
-                        title="Repor Estoque (Lançar Custo)"
+                      <button 
+                        onClick={() => adjustStockQty(item.id, 1)}
+                        className="p-0.5 rounded text-white/40 hover:text-white transition-colors"
+                        title="Aumentar"
                       >
                         <PlusCircle className="w-4 h-4" />
-                      </Link>
-                    )}
-                    <button 
-                      onClick={() => handleStartEdit(item)}
-                      className="p-1.5 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors"
-                      title="Editar dados e preços"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    
-                    <button 
-                      onClick={() => deleteStock(item.id)}
-                      className="p-1.5 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
-                      title="Excluir item"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      </button>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1.5">
+                      {(item.status === "urgent" || item.quantity < 5) && (
+                        <Link 
+                          href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}`}
+                          className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400 transition-colors"
+                          title="Lançar custo de reposição"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                        </Link>
+                      )}
+                      <button 
+                        onClick={() => handleStartEdit(item)}
+                        className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors"
+                        title="Editar dados e preços"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      
+                      <button 
+                        onClick={() => deleteStock(item.id)}
+                        className="p-1 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
+                        title="Excluir item"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -668,6 +682,17 @@ export default function EstoquePage() {
                     </div>
                   </div>
 
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">URL da Imagem (Thumbnail)</label>
+                    <input 
+                      type="url" 
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
+                    />
+                  </div>
+
                   <button 
                     type="submit"
                     className="w-full mt-6 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
@@ -801,6 +826,17 @@ export default function EstoquePage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">URL da Imagem (Thumbnail)</label>
+                    <input 
+                      type="url" 
+                      value={editImageUrl}
+                      onChange={(e) => setEditImageUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
+                    />
                   </div>
 
                   {/* RETORNÁVEIS - Idea 1 */}

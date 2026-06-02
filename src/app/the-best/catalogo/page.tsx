@@ -85,12 +85,9 @@ export default function CatalogoPublicoPage() {
     return "outros";
   };
 
-  // Filter & Search public products (Only quantity > 0 and price_sell > 0)
+  // Filter & Search public products (Show all items with responsive status indicators)
   const visibleProducts = useMemo(() => {
     return stock.filter(item => {
-      // Must have price and quantity
-      if (!item.price_sell || item.price_sell <= 0 || item.quantity <= 0) return false;
-      
       // Match search term
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.barcode && item.barcode.includes(searchTerm));
@@ -203,20 +200,31 @@ export default function CatalogoPublicoPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.25 }}
-                    className="bg-[#0b0b0d] border border-white/5 rounded-xl p-4 flex items-center justify-between relative overflow-hidden group hover:border-white/10 transition-all duration-300"
+                    className="bg-[#0b0b0d] border border-white/5 rounded-xl p-4 flex items-center gap-4 relative overflow-hidden group hover:border-white/10 transition-all duration-300"
                   >
                     {/* Glowing side accent */}
                     <div className={`absolute left-0 top-0 bottom-0 w-1 transition-all duration-300 ${
                       isCerveja ? "bg-amber-500/30" : "bg-emerald-500/30"
                     }`} />
 
-                    <div className="space-y-2 flex-1 pr-4">
+                    {/* Thumbnail Image */}
+                    {item.image_url && (
+                      <div className="w-14 h-14 rounded-lg bg-black/40 border border-white/10 p-1.5 overflow-hidden flex-shrink-0 flex items-center justify-center group-hover:border-amber-500/10 transition-colors">
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name} 
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5 flex-1 min-w-0 pr-2">
                       <div className="space-y-0.5">
-                        <span className="font-headline font-bold text-sm tracking-wide text-white leading-tight uppercase block">
+                        <span className="font-headline font-bold text-sm tracking-wide text-white leading-tight uppercase block truncate">
                           {item.name}
                         </span>
 
-                        <div className="flex flex-wrap gap-1.5 mt-1">
+                        <div className="flex flex-wrap gap-1 mt-1">
                           {/* Returnable Casco indicator */}
                           {isReturnable && (
                             <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-amber-500/10 text-amber-400 border border-amber-400/20">
@@ -225,7 +233,11 @@ export default function CatalogoPublicoPage() {
                           )}
 
                           {/* Low stock indicators */}
-                          {item.quantity < 5 ? (
+                          {item.quantity <= 0 ? (
+                            <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-rose-500/10 text-rose-450 border border-rose-500/20">
+                              ⌛ Esgotado / Chegando
+                            </span>
+                          ) : item.quantity < 5 ? (
                             <span className="px-1.5 py-0.2 rounded text-[7px] font-mono font-semibold uppercase bg-amber-500/10 text-amber-400 border border-amber-450/20 animate-pulse">
                               🔥 Poucas Unidades Gelando!
                             </span>
@@ -240,10 +252,16 @@ export default function CatalogoPublicoPage() {
 
                     {/* Big neon glowing price tag */}
                     <div className="text-right flex-shrink-0">
-                      <span className="block text-emerald-400 font-headline font-black text-lg tracking-wide shadow-glow">
-                        {formatCurrency(item.price_sell)}
-                      </span>
-                      {isReturnable && (
+                      {item.price_sell && item.price_sell > 0 ? (
+                        <span className="block text-emerald-400 font-headline font-black text-lg tracking-wide shadow-glow">
+                          {formatCurrency(item.price_sell)}
+                        </span>
+                      ) : (
+                        <span className="block text-amber-400 font-headline font-bold text-[10px] tracking-wider uppercase border border-amber-400/20 px-2 py-1 rounded bg-amber-500/5 animate-pulse">
+                          Sob Consulta
+                        </span>
+                      )}
+                      {isReturnable && item.price_sell && item.price_sell > 0 && (
                         <span className="text-[8px] font-mono text-white/30 uppercase mt-0.5 block">
                           + {formatCurrency(item.deposit_fee)} dep
                         </span>

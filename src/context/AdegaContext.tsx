@@ -50,6 +50,7 @@ export interface StockItem {
   is_returnable?: boolean;
   deposit_fee?: number;
   batches?: { lot_number: string; expiration_date: string; quantity: number }[];
+  image_url?: string;
 }
 
 export interface FixedCostItem {
@@ -158,11 +159,11 @@ interface AdegaContextType {
   deleteIdea: (id: string) => Promise<void>;
   
   // Stock actions
-  addStock: (name: string, quantity: number, status: StockItem["status"], priceCost?: string, priceSell?: string, barcode?: string, isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"]) => Promise<boolean>;
+  addStock: (name: string, quantity: number, status: StockItem["status"], priceCost?: string, priceSell?: string, barcode?: string, isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"], imageUrl?: string) => Promise<boolean>;
   adjustStockQty: (id: string, amount: number) => Promise<void>;
   toggleStockStatus: (id: string) => Promise<void>;
   deleteStock: (id: string) => Promise<void>;
-  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[], isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"]) => Promise<boolean>;
+  updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[], isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"], imageUrl?: string) => Promise<boolean>;
 
   // Fixed Cost actions
   addFixedCost: (description: string, amount: string, dueDay: number, assignee: FixedCostItem["assignee"], receipt?: string) => Promise<boolean>;
@@ -792,7 +793,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     barcode?: string,
     isReturnable?: boolean,
     depositFee?: string,
-    batches?: StockItem["batches"]
+    batches?: StockItem["batches"],
+    imageUrl?: string
   ): Promise<boolean> => {
     if (!name.trim() || quantity <= 0) return false;
 
@@ -810,7 +812,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       barcode: barcode?.trim() || undefined,
       is_returnable: isReturnable || undefined,
       deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : undefined,
-      batches: batches || undefined
+      batches: batches || undefined,
+      image_url: imageUrl || undefined
     };
 
     if (isCloudMode) {
@@ -917,7 +920,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     recipe?: RecipeIngredient[],
     isReturnable?: boolean,
     depositFee?: string,
-    batches?: StockItem["batches"]
+    batches?: StockItem["batches"],
+    imageUrl?: string
   ): Promise<boolean> => {
     const item = stock.find((s) => s.id === id);
     if (!item) return false;
@@ -955,7 +959,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       price_history: newHistory,
       is_returnable: isReturnable || null,
       deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : null,
-      batches: batches || null
+      batches: batches || null,
+      image_url: imageUrl || null
     };
 
     if (isCloudMode) {
@@ -987,7 +992,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
               price_history: newHistory,
               is_returnable: isReturnable || undefined,
               deposit_fee: isReturnable && !isNaN(parsedDeposit) ? parsedDeposit : undefined,
-              batches: batches || undefined
+              batches: batches || undefined,
+              image_url: imageUrl || s.image_url
             }
           : s
       )

@@ -540,6 +540,154 @@ export default function EstoquePage() {
         </div>
       )}
 
+      {/* Add Stock Sidebar Drawer */}
+      <AnimatePresence>
+        {isAddingStock && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAddingStock(false)}
+              className="absolute inset-0"
+            />
+            {/* Drawer */}
+            <motion.div 
+              initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
+              animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
+              exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 220 }}
+              className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between overflow-y-auto ${
+                isMobile 
+                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10" 
+                  : "w-full max-w-md h-full border-l border-white/10"
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between pb-4 border-b border-white/5 mb-6">
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-emerald-400" />
+                    <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">ADICIONAR PRODUTO</h3>
+                  </div>
+                  <button 
+                    onClick={() => setIsAddingStock(false)}
+                    className="p-1 rounded text-white/40 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome da Bebida / Produto</label>
+                    <input 
+                      type="text" 
+                      required
+                      value={stockName}
+                      onChange={(e) => setStockName(e.target.value)}
+                      placeholder="Ex: Cerveja Heineken 600ml..."
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Qtd Inicial</label>
+                      <input 
+                        type="number" 
+                        required
+                        min="1"
+                        value={stockQty}
+                        onChange={(e) => setStockQty(parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras</label>
+                      <input 
+                        type="text" 
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value)}
+                        placeholder="Código EAN..."
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Custo (R$)</label>
+                      <input 
+                        type="text" 
+                        value={priceCost}
+                        onChange={(e) => setPriceCost(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
+                      <input 
+                        type="text" 
+                        value={priceSell}
+                        onChange={(e) => setPriceSell(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Status Inicial</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: "urgent", label: "Urgente" },
+                        { id: "planned", label: "Planejado" },
+                        { id: "in_stock", label: "Em Estoque" },
+                      ].map((statusOption) => (
+                        <button 
+                          key={statusOption.id}
+                          type="button"
+                          onClick={() => setStockStatus(statusOption.id as any)}
+                          className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
+                            stockStatus === statusOption.id 
+                              ? statusOption.id === "urgent" 
+                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30" 
+                                : statusOption.id === "planned" 
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                              : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
+                          }`}
+                        >
+                          {statusOption.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit"
+                    className="w-full mt-6 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
+                  >
+                    Adicionar ao Estoque
+                  </button>
+                </form>
+              </div>
+
+              <div className="p-4 bg-white/[0.01] border border-white/5 rounded-lg flex items-start gap-2.5 mt-6">
+                <AlertCircle className="w-4 h-4 text-white/40 flex-shrink-0 mt-0.5" />
+                <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase">
+                  O produto será adicionado ao estoque geral e poderá ser configurado como retornável ou associado a lotes posteriormente na aba de edição.
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Edit Stock Sidebar Drawer (Including Recipe/Combo Composer) */}
       <AnimatePresence>
         {editingProduct && (

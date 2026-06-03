@@ -4,34 +4,43 @@ import React, { useState } from "react";
 import { useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  DollarSign, 
   Plus, 
   Trash2, 
   Check, 
   Filter, 
   User, 
   PlusCircle, 
-  TrendingUp, 
-  CheckCircle2, 
   AlertCircle,
   X,
   Paperclip,
   FileText
 } from "lucide-react";
+import Image from "next/image";
+
+type CostFilter = "all" | "gu" | "melhor" | "pending";
 
 export default function CustosPage() {
   const { 
     costs, 
     addCost, 
     toggleCostPaid, 
-    deleteCost, 
-    isCloudMode 
+    deleteCost
   } = useAdega();
 
   // Filters
-  const [costFilter, setCostFilter] = useState<"all" | "gu" | "melhor" | "pending">("all");
+  const [costFilter, setCostFilter] = useState<CostFilter>("all");
   const [isAddingCost, setIsAddingCost] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Form states
+  const [costDesc, setCostDesc] = useState("");
+  const [costVal, setCostVal] = useState("");
+  const [costBuyer, setCostBuyer] = useState<"gu" | "melhor">("gu");
+  const [costPaid, setCostPaid] = useState(false);
+  const [costInstallments, setCostInstallments] = useState("1");
+  const [costReceipt, setCostReceipt] = useState<string>("");
+  const [receiptFileName, setReceiptFileName] = useState<string>("");
+  const [selectedReceipt, setSelectedReceipt] = useState<{ title: string; url: string } | null>(null);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -56,16 +65,6 @@ export default function CustosPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Form states
-  const [costDesc, setCostDesc] = useState("");
-  const [costVal, setCostVal] = useState("");
-  const [costBuyer, setCostBuyer] = useState<"gu" | "melhor">("gu");
-  const [costPaid, setCostPaid] = useState(false);
-  const [costInstallments, setCostInstallments] = useState("1");
-  const [costReceipt, setCostReceipt] = useState<string>("");
-  const [receiptFileName, setReceiptFileName] = useState<string>("");
-  const [selectedReceipt, setSelectedReceipt] = useState<{ title: string; url: string } | null>(null);
-
   // Calculations
   const totalGeral = costs.reduce((sum, item) => sum + item.amount, 0);
   const totalGu = costs.reduce((sum, item) => sum + (item.buyer === "gu" ? item.amount : 0), 0);
@@ -74,10 +73,10 @@ export default function CustosPage() {
   const totalGuPago = costs.reduce((sum, item) => sum + (item.buyer === "gu" && item.paid ? item.amount : 0), 0);
   const totalMelhorPago = costs.reduce((sum, item) => sum + (item.buyer === "melhor" && item.paid ? item.amount : 0), 0);
 
-  const totalItensPagos = costs.filter(c => c.paid).reduce((sum, c) => sum + c.amount, 0);
-  const quotaAcerto = totalItensPagos / 2;
-  const saldoAcerto = Math.abs(totalGuPago - totalMelhorPago) / 2;
-  const credor = totalGuPago > totalMelhorPago ? "Gu" : totalMelhorPago > totalGuPago ? "Melhor" : null;
+  const costFilters: { id: CostFilter; label: string }[] = [
+    { id: "all", label: "Todos" },
+    { id: "pending", label: "Pendentes" },
+  ];
 
   const filteredCosts = costs.filter((c) => {
     if (costFilter === "gu") return c.buyer === "gu";
@@ -178,15 +177,10 @@ export default function CustosPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {[
-              { id: "all", label: "Todos" },
-              { id: "gu", label: "Só Oliveira" },
-              { id: "melhor", label: "Só Marques" },
-              { id: "pending", label: "Pendentes" },
-            ].map((f) => (
+            {costFilters.map((f) => (
               <button 
                 key={f.id}
-                onClick={() => setCostFilter(f.id as any)}
+                onClick={() => setCostFilter(f.id)}
                 className={`px-3 py-1.5 rounded text-xs font-mono tracking-wider transition-all duration-300 ${
                   costFilter === f.id 
                     ? "bg-white text-black font-semibold" 
@@ -593,9 +587,12 @@ export default function CustosPage() {
                   </div>
                 ) : (
                   <div className="w-full max-h-[70vh] flex items-center justify-center overflow-auto rounded-lg border border-white/5 bg-black/40 p-2">
-                    <img 
-                      src={selectedReceipt.url} 
-                      alt="Comprovante de Custo" 
+                    <Image
+                      src={selectedReceipt.url}
+                      alt="Comprovante de Custo"
+                      width={1200}
+                      height={900}
+                      unoptimized
                       className="max-w-full max-h-[60vh] object-contain rounded"
                     />
                   </div>

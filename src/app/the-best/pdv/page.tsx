@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useAdega, StockItem, HeldCart } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -12,17 +12,27 @@ import {
   DollarSign, 
   Check, 
   X, 
-  Sparkles, 
   AlertCircle, 
   Settings,
   ArrowRight,
-  TrendingUp,
   Lock,
   LockOpen,
   FolderMinus,
   MessageCircle,
   Percent
 } from "lucide-react";
+import Image from "next/image";
+import { buildProductArtDataUrl, getProductDisplayImage } from "@/lib/theBestProductImages";
+
+type PaymentMethod =
+  | "pix"
+  | "dinheiro"
+  | "credito"
+  | "debito"
+  | "fiado"
+  | "consumo_oliveira"
+  | "consumo_marques"
+  | "cortesia";
 
 interface CartItem {
   id: string;
@@ -53,7 +63,7 @@ export default function PdvPage() {
   // UI states
   const [searchTerm, setSearchTerm] = useState("");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pix" | "dinheiro" | "credito" | "debito" | "fiado" | "consumo_oliveira" | "consumo_marques" | "cortesia">("pix");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   
   // Custom discount state
   const [discountVal, setDiscountVal] = useState("");
@@ -132,8 +142,23 @@ export default function PdvPage() {
   // Quick cash buttons
   const cashQuickNotes = [20, 50, 100, 200];
 
+  const isSellableProduct = (product: StockItem) => product.quantity > 0 || !!product.recipe?.length;
+
   // Cart actions
   const addToCart = (product: StockItem) => {
+    const hasRecipe = !!product.recipe?.length;
+    const existing = activeCart.find(item => item.id === product.id);
+
+    if (!isSellableProduct(product)) {
+      alert("Produto sem estoque. Reponha no estoque antes de vender.");
+      return;
+    }
+
+    if (!hasRecipe && existing && existing.quantity >= product.quantity) {
+      alert("Quantidade indisponível no estoque para este produto.");
+      return;
+    }
+
     if (!product.price_sell || product.price_sell <= 0) {
       setAdjustingProduct(product);
       setTempPriceCost(product.price_cost?.toString() || "");
@@ -152,7 +177,6 @@ export default function PdvPage() {
     }
 
     setActiveCart((prev) => {
-      const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item => 
           item.id === product.id 
@@ -213,8 +237,8 @@ export default function PdvPage() {
     // If we have items in active cart, swap them!
     if (activeCart.length > 0) {
       const currentActiveHeld: HeldCart = {
-        id: `held-${Date.now()}`,
-        name: `Substituído (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`,
+        id: `held-swap-${held.id}`,
+        name: `Substituido (${held.name})`,
         items: [...activeCart]
       };
       setHeldCarts(prev => [...prev.filter(c => c.id !== held.id), currentActiveHeld]);
@@ -251,8 +275,18 @@ export default function PdvPage() {
   };
 
   // Checkout submission
-  const handleCheckoutSubmit = async () => {
+  const handleCheckoutSubmit = useCallback(async () => {
     if (activeCart.length === 0) return;
+
+    const unavailableItem = activeCart.find((cartItem) => {
+      const stockItem = stock.find((item) => item.id === cartItem.id);
+      return stockItem && !stockItem.recipe?.length && cartItem.quantity > stockItem.quantity;
+    });
+
+    if (unavailableItem) {
+      alert(`Estoque insuficiente para ${unavailableItem.name}. Atualize o carrinho antes de finalizar.`);
+      return;
+    }
 
     let success = false;
 
@@ -281,7 +315,18 @@ export default function PdvPage() {
       setDebtCustomerName("");
       setIsSuccessOpen(true);
     }
-  };
+  }, [
+    activeCart,
+    changeAmount,
+    debtCustomerName,
+    paymentMethod,
+    parsedDiscount,
+    registerDebt,
+    registerSale,
+    setActiveCart,
+    stock,
+    totalAmount,
+  ]);
 
   // Keyboard shortcut listener - Idea 5
   useEffect(() => {
@@ -349,7 +394,7 @@ export default function PdvPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPosActive, isCheckoutOpen, activeCart, paymentMethod, receivedAmount, changeAmount, debtCustomerName, activeCustomerDebt]);
+  }, [isPosActive, isCheckoutOpen, activeCart, paymentMethod, receivedAmount, changeAmount, debtCustomerName, activeCustomerDebt, handleCheckoutSubmit, setActiveCart]);
 
   // Cash Closeout Register summary
   const handleCloseSessionSubmit = () => {
@@ -490,24 +535,51 @@ export default function PdvPage() {
                   Sugestões de Pesquisa (Clique para Adicionar)
                 </div>
                 <div className="divide-y divide-white/5">
-                  {filteredProducts.map((product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => {
-                        addToCart(product);
-                        setSearchTerm(""); // Auto-clear search bar on selection to make it fast!
-                      }}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 text-left transition-all"
-                    >
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-semibold text-white">{product.name}</span>
-                        <span className="text-[10px] font-mono text-white/40 block">Estoque: {product.quantity}</span>
-                      </div>
-                      <span className="font-mono text-xs font-bold text-emerald-400">
-                        {product.price_sell ? formatCurrency(product.price_sell) : "Precificar"}
-                      </span>
-                    </button>
-                  ))}
+                  {filteredProducts.map((product) => {
+                    const isBlockedOutOfStock = !isSellableProduct(product);
+
+                    return (
+                      <button
+                        key={product.id}
+                        onClick={() => {
+                          addToCart(product);
+                          setSearchTerm(""); // Auto-clear search bar on selection to make it fast!
+                        }}
+                        disabled={isBlockedOutOfStock}
+                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-all ${
+                          isBlockedOutOfStock
+                            ? "cursor-not-allowed opacity-45"
+                            : "hover:bg-white/5"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-black/40 border border-white/10 p-1 overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <Image
+                              src={getProductDisplayImage(product)}
+                              alt={product.name}
+                              width={40}
+                              height={40}
+                              unoptimized
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = buildProductArtDataUrl(product);
+                              }}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="space-y-0.5 min-w-0">
+                            <span className="text-xs font-semibold text-white truncate block">{product.name}</span>
+                            <span className="text-[10px] font-mono text-white/40 block">
+                              {isBlockedOutOfStock ? "Sem estoque" : `Estoque: ${product.quantity}`}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="font-mono text-xs font-bold text-emerald-400">
+                          {product.price_sell ? formatCurrency(product.price_sell) : "Precificar"}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -518,13 +590,19 @@ export default function PdvPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-2">
               {filteredProducts.map((product) => {
                 const isOutOfStock = product.quantity <= 0;
+                const isBlockedOutOfStock = !isSellableProduct(product);
                 const hasNoPrice = !product.price_sell || product.price_sell <= 0;
 
                 return (
                   <button
                     key={product.id}
                     onClick={() => addToCart(product)}
-                    className="flex flex-col text-left bg-[#0b0b0d] border border-white/5 hover:border-white/10 p-4 rounded-xl relative overflow-hidden group transition-all duration-300 active:scale-[0.98]"
+                    disabled={isBlockedOutOfStock}
+                    className={`flex flex-col text-left bg-[#0b0b0d] border border-white/5 p-4 rounded-xl relative overflow-hidden group transition-all duration-300 ${
+                      isBlockedOutOfStock
+                        ? "cursor-not-allowed opacity-45"
+                        : "hover:border-white/10 active:scale-[0.98]"
+                    }`}
                   >
                     <div className="flex justify-between items-start w-full gap-2 mb-4">
                       <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
@@ -532,8 +610,23 @@ export default function PdvPage() {
                           ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
                           : "bg-white/5 text-white/50 border-white/5"
                       }`}>
-                        {isOutOfStock ? "Sem estoque" : `Qtd: ${product.quantity}`}
+                        {isBlockedOutOfStock ? "Sem estoque" : isOutOfStock ? "Combo" : `Qtd: ${product.quantity}`}
                       </span>
+                    </div>
+
+                    <div className="w-full aspect-square rounded-xl bg-black/40 border border-white/10 p-2 mb-3 overflow-hidden flex items-center justify-center group-hover:border-white/20 transition-colors">
+                      <Image
+                        src={getProductDisplayImage(product)}
+                        alt={product.name}
+                        width={160}
+                        height={160}
+                        unoptimized
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = buildProductArtDataUrl(product);
+                        }}
+                        className="w-full h-full object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                      />
                     </div>
 
                     <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors mb-2 min-h-[2.5rem]">
@@ -820,7 +913,7 @@ export default function PdvPage() {
                   <div className="space-y-2">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block font-bold">Forma de Pagamento</label>
                     <div className="grid grid-cols-2 gap-3">
-                      {[
+                      {([
                         { id: "pix", label: "Pix [P]" },
                         { id: "dinheiro", label: "Dinheiro [D]" },
                         { id: "credito", label: "Crédito [C]" },
@@ -829,10 +922,10 @@ export default function PdvPage() {
                         { id: "consumo_oliveira", label: "Consumo Oliveira" },
                         { id: "consumo_marques", label: "Consumo Marques" },
                         { id: "cortesia", label: "Cortesia" }
-                      ].map((method) => (
+                      ] satisfies { id: PaymentMethod; label: string }[]).map((method) => (
                         <button
                           key={method.id}
-                          onClick={() => setPaymentMethod(method.id as any)}
+                          onClick={() => setPaymentMethod(method.id)}
                           className={`py-3 px-4 rounded-xl text-xs font-mono uppercase tracking-wider border transition-all duration-300 font-semibold ${
                             paymentMethod === method.id 
                               ? "bg-white text-black border-white shadow-lg" 

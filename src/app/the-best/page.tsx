@@ -7,10 +7,8 @@ import {
   DollarSign, 
   Wine, 
   Lightbulb, 
-  PlusCircle, 
   ArrowRight,
   TrendingDown,
-  User,
   ShoppingBag,
   CalendarDays
 } from "lucide-react";
@@ -18,7 +16,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 export default function AdegaDashboard() {
-  const { costs, ideas, stock, fixedCosts, isCloudMode } = useAdega();
+  const { costs, ideas, stock, fixedCosts } = useAdega();
 
   // Calculations
   const totalGeral = costs.reduce((sum, item) => sum + item.amount, 0);
@@ -30,16 +28,6 @@ export default function AdegaDashboard() {
   
   const totalGuPendente = costs.reduce((sum, item) => sum + (item.buyer === "gu" && !item.paid ? item.amount : 0), 0);
   const totalMelhorPendente = costs.reduce((sum, item) => sum + (item.buyer === "melhor" && !item.paid ? item.amount : 0), 0);
-
-  // Rateio: Cada um deve pagar metade dos custos do outro que já foram marcados como pagos
-  // Ou seja, soma de todos os itens pagos dividida por 2 é a quota de cada um.
-  const totalItensPagos = costs.filter(c => c.paid).reduce((sum, c) => sum + c.amount, 0);
-  const quotaAcerto = totalItensPagos / 2;
-  
-  // Quem pagou mais?
-  // Se GuPago > MelhorPago: Melhor deve transferir para Gu a diferença para igualar: (GuPago - quotaAcerto) ou (GuPago - MelhorPago) / 2
-  const saldoAcerto = Math.abs(totalGuPago - totalMelhorPago) / 2;
-  const credor = totalGuPago > totalMelhorPago ? "Gu" : totalMelhorPago > totalGuPago ? "Melhor" : null;
 
   // Contas Fixas Calculations
   const totalGeralFixed = fixedCosts.reduce((sum, item) => sum + item.amount, 0);
@@ -101,7 +89,7 @@ export default function AdegaDashboard() {
             className="invert opacity-45 flex-shrink-0"
           />
           <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase tracking-wider">
-            "Distribuidora e Conveniência The Best - Desde 1998."
+            Distribuidora e Conveniencia The Best - Desde 1998.
           </p>
         </div>
       </div>

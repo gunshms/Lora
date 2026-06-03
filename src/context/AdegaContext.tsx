@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient, SupabaseConfig } from "@/services/supabase";
 
 const formatCurrency = (value: number) => {
@@ -52,6 +53,20 @@ export interface StockItem {
   batches?: { lot_number: string; expiration_date: string; quantity: number }[];
   image_url?: string;
 }
+
+type StockUpdateFields = {
+  price_cost: number;
+  price_sell: number;
+  barcode: string | null;
+  name: string;
+  status: StockItem["status"];
+  recipe: RecipeIngredient[] | null;
+  price_history: NonNullable<StockItem["price_history"]>;
+  is_returnable: boolean | null;
+  deposit_fee: number | null;
+  batches: StockItem["batches"] | null;
+  image_url: string | null;
+};
 
 export interface FixedCostItem {
   id: string;
@@ -190,6 +205,12 @@ interface AdegaContextType {
 
 const AdegaContext = createContext<AdegaContextType | undefined>(undefined);
 
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return fallback;
+};
+
 export function AdegaProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [dbConfig, setDbConfig] = useState<SupabaseConfig | null>(null);
@@ -215,45 +236,11 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // Load configuration and user session on mount
-  useEffect(() => {
-    const savedConfig = localStorage.getItem("thebest_db_config");
-    let activeConfig: SupabaseConfig | null = null;
-    
-    if (savedConfig) {
-      activeConfig = JSON.parse(savedConfig);
-      setDbConfig(activeConfig);
-    } else {
-      const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (envUrl && envKey) {
-        activeConfig = { url: envUrl, anonKey: envKey };
-        setDbConfig(activeConfig);
-      }
-    }
-
-    const savedUser = localStorage.getItem("thebest_current_user");
-    if (savedUser === "Oliveira" || savedUser === "Marques") {
-      setCurrentUser(savedUser);
-    }
-
-    // Recover POS sessions from local storage
-    const savedActiveCart = localStorage.getItem("thebest_pdv_active_cart");
-    const savedHeldCarts = localStorage.getItem("thebest_pdv_held_carts");
-    const savedPosState = localStorage.getItem("thebest_pdv_active_state");
-    
-    if (savedActiveCart) setActiveCart(JSON.parse(savedActiveCart));
-    if (savedHeldCarts) setHeldCarts(JSON.parse(savedHeldCarts));
-    if (savedPosState) setIsPosActive(JSON.parse(savedPosState));
-
-    initializeCloudData(activeConfig);
-  }, []);
-
   // Safe localStorage helper to prevent QuotaExceededError crashes
   const safeLocalStorageSetItem = (key: string, value: string) => {
     try {
       localStorage.setItem(key, value);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn(`Erro ao salvar no localStorage para a chave ${key}:`, error);
       if (error instanceof DOMException && (error.name === "QuotaExceededError" || error.name === "NS_ERROR_DOM_QUOTA_REACHED")) {
         console.error("Limite de cota de armazenamento local do navegador excedido!");
@@ -317,7 +304,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     }
   }, [auditLog, mounted]);
 
-  const loadLocalFallback = () => {
+  const loadLocalFallback = useCallback(() => {
     const localCosts = localStorage.getItem("thebest_costs");
     const localIdeas = localStorage.getItem("thebest_ideas");
     const localStock = localStorage.getItem("thebest_stock");
@@ -333,10 +320,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     if (localSales) setSales(JSON.parse(localSales));
     if (localDebts) setDebts(JSON.parse(localDebts));
     if (localAudit) setAuditLog(JSON.parse(localAudit));
-  };
+  }, []);
 
   // Fetch all tables from Supabase strictly
-  const initializeCloudData = async (config: SupabaseConfig | null) => {
+  const initializeCloudData = useCallback(async (config: SupabaseConfig | null) => {
     setIsLoadingData(true);
     setDbError(null);
     const client = getSupabaseClient(config);
@@ -397,9 +384,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         setIdeas(ideasRes.data || []);
         setStock(stockRes.data || []);
         setIsCloudMode(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Supabase load error:", err);
-        setDbError(err.message || "Falha ao consultar tabelas na nuvem.");
+        setDbError(getErrorMessage(err, "Falha ao consultar tabelas na nuvem."));
         setIsCloudMode(false);
         loadLocalFallback();
       } finally {
@@ -412,7 +399,41 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       setIsLoadingData(false);
       setMounted(true);
     }
-  };
+  }, [loadLocalFallback]);
+
+  // Load configuration and user session on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem("thebest_db_config");
+    let activeConfig: SupabaseConfig | null = null;
+
+    if (savedConfig) {
+      activeConfig = JSON.parse(savedConfig);
+      setDbConfig(activeConfig);
+    } else {
+      const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (envUrl && envKey) {
+        activeConfig = { url: envUrl, anonKey: envKey };
+        setDbConfig(activeConfig);
+      }
+    }
+
+    const savedUser = localStorage.getItem("thebest_current_user");
+    if (savedUser === "Oliveira" || savedUser === "Marques") {
+      setCurrentUser(savedUser);
+    }
+
+    // Recover POS sessions from local storage
+    const savedActiveCart = localStorage.getItem("thebest_pdv_active_cart");
+    const savedHeldCarts = localStorage.getItem("thebest_pdv_held_carts");
+    const savedPosState = localStorage.getItem("thebest_pdv_active_state");
+
+    if (savedActiveCart) setActiveCart(JSON.parse(savedActiveCart));
+    if (savedHeldCarts) setHeldCarts(JSON.parse(savedHeldCarts));
+    if (savedPosState) setIsPosActive(JSON.parse(savedPosState));
+
+    initializeCloudData(activeConfig);
+  }, [initializeCloudData]);
 
   const reconnect = async () => {
     await initializeCloudData(dbConfig);
@@ -495,8 +516,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       setDbConfig(testConfig);
       await initializeCloudData(testConfig);
       return true;
-    } catch (err: any) {
-      setDbError(err.message || "Erro ao conectar ao Supabase.");
+    } catch (err: unknown) {
+      setDbError(getErrorMessage(err, "Erro ao conectar ao Supabase."));
       setIsCloudMode(false);
       return false;
     } finally {
@@ -529,9 +550,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   const deductStockLevels = async (
     items: { id: string; name: string; quantity: number }[],
-    client: any
+    client: SupabaseClient | null
   ) => {
-    let localStock = [...stock];
+    const localStock = [...stock];
 
     for (const item of items) {
       const currentStockItem = localStock.find(s => s.id === item.id);
@@ -566,7 +587,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       } else if (isSmartCombo) {
         const lowerName = item.name.toLowerCase();
         let mainDrinkBase: StockItem | undefined;
-        let fraction = 0.25;
+        const fraction = 0.25;
 
         if (lowerName.includes("absolut")) {
           mainDrinkBase = localStock.find(s => s.name.toLowerCase().includes("absolut") && !s.name.toLowerCase().includes("copã") && !s.name.toLowerCase().includes("copa") && !s.name.toLowerCase().includes("dose"));
@@ -949,7 +970,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       ].slice(-10); // Mantém as últimas 10 alterações para economizar cota de espaço
     }
 
-    const updateFields: any = {
+    const updateFields: StockUpdateFields = {
       price_cost: parsedCost,
       price_sell: parsedSell,
       barcode: barcode?.trim() || null,
@@ -1133,17 +1154,6 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     } else {
       await deductStockLevels(items, null);
     }
-
-    // Update local stock levels
-    setStock((prev) =>
-      prev.map((s) => {
-        const soldItem = items.find((item) => item.id === s.id);
-        if (soldItem) {
-          return { ...s, quantity: Math.max(0, s.quantity - soldItem.quantity) };
-        }
-        return s;
-      })
-    );
 
     // Save sale record
     setSales((prev) => [newSale, ...prev]);

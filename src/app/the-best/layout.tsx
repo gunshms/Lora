@@ -13,21 +13,18 @@ import {
   Settings, 
   Menu, 
   X, 
-  Cloud, 
-  CloudOff,
   Copy,
   HelpCircle,
   CalendarDays,
   ShoppingBag,
   Receipt,
   User,
-  Lock,
   ShieldAlert
 } from "lucide-react";
 import Image from "next/image";
 
 function ConnectionBadge() {
-  const { isCloudMode, isLoadingData, dbError, reconnect } = useAdega();
+  const { isCloudMode, isLoadingData } = useAdega();
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] border border-white/5 text-xs text-white/60">
@@ -74,17 +71,21 @@ function SidebarContent({ onClose, onOpenAudit }: { onClose?: () => void; onOpen
   };
 
   const sqlCreateScripts = `-- 1. Tabela de Custos
-create table thebest_costs (
+create table if not exists thebest_costs (
   id text primary key,
   description text not null,
   amount numeric not null,
   buyer text not null,
   paid boolean default false,
-  date date default current_date
+  date date default current_date,
+  installments_count integer,
+  current_installment integer,
+  installment_parent_id text,
+  receipt text
 );
 
 -- 2. Tabela de Ideias
-create table thebest_ideas (
+create table if not exists thebest_ideas (
   id text primary key,
   title text not null,
   description text not null,
@@ -94,28 +95,35 @@ create table thebest_ideas (
 );
 
 -- 3. Tabela de Estoque / Compras
-create table thebest_stock (
+create table if not exists thebest_stock (
   id text primary key,
   name text not null,
-  quantity integer not null,
+  quantity numeric not null,
   status text not null,
   price_cost numeric default 0,
   price_sell numeric default 0,
-  barcode text
+  barcode text,
+  recipe jsonb,
+  price_history jsonb,
+  is_returnable boolean,
+  deposit_fee numeric,
+  batches jsonb,
+  image_url text
 );
 
 -- 4. Tabela de Contas Fixas
-create table thebest_fixed (
+create table if not exists thebest_fixed (
   id text primary key,
   description text not null,
   amount numeric not null,
   "dueDay" integer not null,
   "paidThisMonth" boolean default false,
-  assignee text not null
+  assignee text not null,
+  receipt text
 );
 
 -- 5. Tabela de Vendas
-create table thebest_sales (
+create table if not exists thebest_sales (
   id text primary key,
   items jsonb not null,
   total_amount numeric not null,
@@ -124,13 +132,37 @@ create table thebest_sales (
   date timestamp default current_timestamp
 );
 
--- 6. Tabela de Auditoria
-create table thebest_audit (
+-- 6. Tabela de Fiado
+create table if not exists thebest_debts (
+  id text primary key,
+  customer_name text not null,
+  amount numeric not null,
+  items jsonb not null,
+  date timestamp default current_timestamp,
+  status text default 'pending'
+);
+
+-- 7. Tabela de Auditoria
+create table if not exists thebest_audit (
   id text primary key,
   "user" text not null,
   action text not null,
   date timestamp default current_timestamp
-);`;
+);
+
+-- Atualizacao segura para bancos que ja existem
+alter table thebest_costs add column if not exists installments_count integer;
+alter table thebest_costs add column if not exists current_installment integer;
+alter table thebest_costs add column if not exists installment_parent_id text;
+alter table thebest_costs add column if not exists receipt text;
+alter table thebest_stock alter column quantity type numeric using quantity::numeric;
+alter table thebest_stock add column if not exists recipe jsonb;
+alter table thebest_stock add column if not exists price_history jsonb;
+alter table thebest_stock add column if not exists is_returnable boolean;
+alter table thebest_stock add column if not exists deposit_fee numeric;
+alter table thebest_stock add column if not exists batches jsonb;
+alter table thebest_stock add column if not exists image_url text;
+alter table thebest_fixed add column if not exists receipt text;`;
 
   return (
     <div className="flex flex-col h-full justify-between p-6 bg-[#080809] border-r border-white/5 relative z-10">
@@ -423,7 +455,7 @@ function PageLoadingSkeleton() {
 }
 
 function LayoutInner({ children }: { children: React.ReactNode }) {
-  const { mounted, currentUser, login, logout, auditLog, clearAuditLog } = useAdega();
+  const { mounted, currentUser, login, auditLog, clearAuditLog } = useAdega();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showAuditDrawer, setShowAuditDrawer] = useState(false);
@@ -701,7 +733,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                         clearAuditLog();
                       }
                     }}
-                    className="w-full py-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-450 border border-red-500/10 rounded-xl text-xs font-mono uppercase font-bold transition-all"
+                    className="w-full py-2.5 bg-red-950/20 hover:bg-red-950/40 text-red-400 border border-red-500/10 rounded-xl text-xs font-mono uppercase font-bold transition-all"
                   >
                     Limpar Logs de Auditoria
                   </button>

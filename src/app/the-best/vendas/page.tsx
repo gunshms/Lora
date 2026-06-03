@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import { useAdega, SaleItem, DebtItem } from "@/context/AdegaContext";
-import { motion, AnimatePresence } from "framer-motion";
 import { 
   Receipt, 
   TrendingUp, 
@@ -15,11 +14,9 @@ import {
   Calendar,
   User,
   Edit2,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Calculator,
-  FileText,
   Check,
   AlertCircle,
   X
@@ -199,13 +196,8 @@ export default function VendasPage() {
     return totalRevenue / sales.length;
   }, [sales, totalRevenue]);
 
-  const averageMargin = useMemo(() => {
-    if (totalRevenue === 0) return 0;
-    return (totalProfit / totalRevenue) * 100;
-  }, [totalRevenue, totalProfit]);
-
   // 1. Sales by weekday (Sun to Sat) for the active month/year
-  const salesByWeekday = useMemo(() => {
+  const salesByWeekday = (() => {
     const counts = [0, 0, 0, 0, 0, 0, 0];
     sales.forEach(sale => {
       const d = new Date(sale.date);
@@ -219,7 +211,7 @@ export default function VendasPage() {
       val,
       percentage: (val / maxVal) * 100
     }));
-  }, [sales, activeYear, activeMonth]);
+  })();
 
   // 2. Top 5 best selling products of the active month/year
   const topProducts = useMemo(() => {
@@ -305,7 +297,7 @@ export default function VendasPage() {
         hour: "2-digit",
         minute: "2-digit",
       }).format(date);
-    } catch (e) {
+    } catch {
       return isoString.split("T")[0];
     }
   };
@@ -470,7 +462,7 @@ export default function VendasPage() {
             </div>
 
             <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
-              {calendarDays.map((item, idx) => {
+              {calendarDays.map((item) => {
                 if (item.type === "empty") {
                   return <div key={item.id} className="aspect-square" />;
                 }
@@ -864,7 +856,7 @@ export default function VendasPage() {
             <div className="md:col-span-7 space-y-2">
               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block flex items-center justify-between">
                 <span>Alertas de Margem Crítica (&lt;35%)</span>
-                <span className="text-[8px] px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">{marginAlerts.length} itens</span>
+                <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">{marginAlerts.length} itens</span>
               </span>
 
               {marginAlerts.length > 0 ? (
@@ -959,7 +951,7 @@ export default function VendasPage() {
                                   <span className="font-headline font-bold text-white text-sm tracking-wide block truncate max-w-[120px]" title={debt.customer_name}>
                                     {debt.customer_name}
                                   </span>
-                                  <span className={`px-1.5 py-0.2 rounded text-[7px] font-mono uppercase border ${scoreBadge.styles}`}>
+                                  <span className={`px-1.5 py-0.5 rounded text-[7px] font-mono uppercase border ${scoreBadge.styles}`}>
                                     {scoreBadge.label}
                                   </span>
                                   <button 

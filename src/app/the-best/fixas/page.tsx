@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  CalendarDays, 
   Plus, 
   Trash2, 
   Check, 
@@ -13,14 +12,15 @@ import {
   Users, 
   PlusCircle, 
   RotateCcw, 
-  TrendingUp, 
   AlertCircle,
   X,
-  CreditCard,
   Calendar,
   Paperclip,
   FileText
 } from "lucide-react";
+import Image from "next/image";
+
+type FixedFilter = "all" | "gu" | "melhor" | "ambos" | "pending";
 
 export default function ContasFixasPage() {
   const { 
@@ -31,7 +31,7 @@ export default function ContasFixasPage() {
   } = useAdega();
 
   // Filters
-  const [fixedFilter, setFixedFilter] = useState<"all" | "gu" | "melhor" | "ambos" | "pending">("all");
+  const [fixedFilter, setFixedFilter] = useState<FixedFilter>("all");
   const [isAddingFixed, setIsAddingFixed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -67,9 +67,15 @@ export default function ContasFixasPage() {
   }, 0);
 
   const totalPago = fixedCosts.filter(f => f.paidThisMonth).reduce((sum, item) => sum + item.amount, 0);
-  const totalPendente = totalGeral - totalPago;
-  
   const progressoPorcentagem = totalGeral > 0 ? Math.round((totalPago / totalGeral) * 100) : 0;
+
+  const fixedFilters: { id: FixedFilter; label: string }[] = [
+    { id: "all", label: "Todas" },
+    { id: "gu", label: "Só Oliveira" },
+    { id: "melhor", label: "Só Marques" },
+    { id: "ambos", label: "Só Ambos (50-50)" },
+    { id: "pending", label: "Pendentes do Mês" },
+  ];
 
   const filteredFixed = fixedCosts.filter((f) => {
     if (fixedFilter === "gu") return f.assignee === "gu";
@@ -241,16 +247,10 @@ export default function ContasFixasPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {[
-              { id: "all", label: "Todas" },
-              { id: "gu", label: "Só Oliveira" },
-              { id: "melhor", label: "Só Marques" },
-              { id: "ambos", label: "Só Ambos (50-50)" },
-              { id: "pending", label: "Pendentes do Mês" },
-            ].map((f) => (
+            {fixedFilters.map((f) => (
               <button 
                 key={f.id}
-                onClick={() => setFixedFilter(f.id as any)}
+                onClick={() => setFixedFilter(f.id)}
                 className={`px-3 py-1.5 rounded text-xs font-mono tracking-wider transition-all duration-300 ${
                   fixedFilter === f.id 
                     ? "bg-white text-black font-semibold" 
@@ -678,9 +678,12 @@ export default function ContasFixasPage() {
                   </div>
                 ) : (
                   <div className="w-full max-h-[70vh] flex items-center justify-center overflow-auto rounded-lg border border-white/5 bg-black/40 p-2">
-                    <img 
-                      src={selectedReceipt.url} 
-                      alt="Comprovante de Conta" 
+                    <Image
+                      src={selectedReceipt.url}
+                      alt="Comprovante de Conta"
+                      width={1200}
+                      height={900}
+                      unoptimized
                       className="max-w-full max-h-[60vh] object-contain rounded"
                     />
                   </div>

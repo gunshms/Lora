@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAdega } from "@/context/AdegaContext";
+import { RecipeIngredient, StockItem, useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Wine, 
-  Beer,
   Plus, 
   Trash2, 
   PlusCircle, 
@@ -14,12 +13,28 @@ import {
   AlertCircle, 
   HelpCircle, 
   X,
-  DollarSign,
   Edit2,
   Share2
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  buildProductArtDataUrl,
+  getProductDisplayImage as resolveProductDisplayImage,
+} from "@/lib/theBestProductImages";
+
+type StockStatus = StockItem["status"];
+type XmlImportItem = {
+  name: string;
+  barcode: string;
+  quantity: number;
+  cost: number;
+  matches_product_id?: string;
+};
+
+const getProductDisplayImage = (item: { name: string; image_url?: string | null }): string => {
+  return resolveProductDisplayImage(item);
+};
 
 export default function EstoquePage() {
   const { 
@@ -33,7 +48,7 @@ export default function EstoquePage() {
   } = useAdega();
 
   const [isAddingStock, setIsAddingStock] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editingProduct, setEditingProduct] = useState<StockItem | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   React.useEffect(() => {
@@ -46,7 +61,7 @@ export default function EstoquePage() {
   // Form inputs (Adding)
   const [stockName, setStockName] = useState("");
   const [stockQty, setStockQty] = useState(1);
-  const [stockStatus, setStockStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
+  const [stockStatus, setStockStatus] = useState<StockStatus>("planned");
   const [priceCost, setPriceCost] = useState("");
   const [priceSell, setPriceSell] = useState("");
   const [barcode, setBarcode] = useState("");
@@ -57,7 +72,7 @@ export default function EstoquePage() {
   const [editCost, setEditCost] = useState("");
   const [editSell, setEditSell] = useState("");
   const [editBarcode, setEditBarcode] = useState("");
-  const [editStatus, setEditStatus] = useState<"urgent" | "planned" | "in_stock">("planned");
+  const [editStatus, setEditStatus] = useState<StockStatus>("planned");
   const [editImageUrl, setEditImageUrl] = useState("");
   
   // Returnable and Batches edit states - Idea 1 & 2
@@ -79,11 +94,11 @@ export default function EstoquePage() {
   // XML Import states - Idea 4
   const [isXmlModalOpen, setIsXmlModalOpen] = useState(false);
   const [xmlFileName, setXmlFileName] = useState("");
-  const [xmlItems, setXmlItems] = useState<{ name: string; barcode: string; quantity: number; cost: number; matches_product_id?: string }[]>([]);
+  const [xmlItems, setXmlItems] = useState<XmlImportItem[]>([]);
   const [xmlTotalValue, setXmlTotalValue] = useState(0);
 
   // Recipe Composer states
-  const [editRecipe, setEditRecipe] = useState<{ product_id: string; quantity: number }[]>([]);
+  const [editRecipe, setEditRecipe] = useState<RecipeIngredient[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [ingredientQty, setIngredientQty] = useState("0.25");
 
@@ -104,7 +119,7 @@ export default function EstoquePage() {
     }
   };
 
-  const handleStartEdit = (item: any) => {
+  const handleStartEdit = (item: StockItem) => {
     setEditingProduct(item);
     setEditName(item.name);
     setEditCost(item.price_cost?.toString() || "");
@@ -200,7 +215,7 @@ export default function EstoquePage() {
 
         // Parse Items
         const detNodes = xmlDoc.getElementsByTagName("det");
-        const itemsList: any[] = [];
+        const itemsList: XmlImportItem[] = [];
 
         for (let i = 0; i < detNodes.length; i++) {
           const det = detNodes[i];
@@ -231,7 +246,7 @@ export default function EstoquePage() {
 
         setXmlItems(itemsList);
         setIsXmlModalOpen(true);
-      } catch (err) {
+      } catch {
         alert("Erro ao ler ou processar o XML da Nota Fiscal. Verifique se o arquivo é um XML de NF-e válido.");
       }
     };
@@ -252,8 +267,6 @@ export default function EstoquePage() {
         // Update existing product quantity & cost!
         const existingProduct = stock.find(s => s.id === item.matches_product_id);
         if (existingProduct) {
-          const currentQty = existingProduct.quantity;
-          
           await updateStockPrices(
             existingProduct.id,
             item.cost.toString(),
@@ -404,15 +417,18 @@ export default function EstoquePage() {
 
                 {/* Left Side: Large Premium Product Image Frame */}
                 <div className="w-full sm:w-28 h-28 sm:h-28 rounded-lg bg-black/40 border border-white/5 flex items-center justify-center p-2 flex-shrink-0 relative overflow-hidden group-hover:border-amber-500/20 transition-all duration-300">
-                  {item.image_url ? (
-                    <img 
-                      src={item.image_url} 
-                      alt={item.name} 
-                      className="w-full h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <Beer className="w-10 h-10 text-white/20" />
-                  )}
+                  <Image
+                    src={getProductDisplayImage(item)}
+                    alt={item.name}
+                    width={112}
+                    height={112}
+                    unoptimized
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = buildProductArtDataUrl(item);
+                    }}
+                    className="w-full h-full object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] group-hover:scale-105 transition-transform duration-300"
+                  />
                 </div>
 
                 {/* Right Side: Product Details & Controls */}
@@ -665,7 +681,7 @@ export default function EstoquePage() {
                         <button 
                           key={statusOption.id}
                           type="button"
-                          onClick={() => setStockStatus(statusOption.id as any)}
+                          onClick={() => setStockStatus(statusOption.id as StockStatus)}
                           className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
                             stockStatus === statusOption.id 
                               ? statusOption.id === "urgent" 
@@ -688,7 +704,7 @@ export default function EstoquePage() {
                       type="url" 
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/..."
+                      placeholder="Cole uma URL personalizada (opcional)"
                       className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
                     />
                   </div>
@@ -811,7 +827,7 @@ export default function EstoquePage() {
                         <button 
                           key={statusOption.id}
                           type="button"
-                          onClick={() => setEditStatus(statusOption.id as any)}
+                          onClick={() => setEditStatus(statusOption.id as StockStatus)}
                           className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
                             editStatus === statusOption.id 
                               ? statusOption.id === "urgent" 
@@ -834,7 +850,7 @@ export default function EstoquePage() {
                       type="url" 
                       value={editImageUrl}
                       onChange={(e) => setEditImageUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/..."
+                      placeholder="Cole uma URL personalizada (opcional)"
                       className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm"
                     />
                   </div>
@@ -1063,7 +1079,7 @@ export default function EstoquePage() {
                               <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-bold text-white">Lote: {batch.lot_number || "S/N"}</span>
-                                  <span className={`px-1.5 py-0.2 rounded text-[7px] border font-bold uppercase ${
+                                  <span className={`px-1.5 py-0.5 rounded text-[7px] border font-bold uppercase ${
                                     isExpired 
                                       ? "bg-rose-500/10 text-rose-400 border-rose-500/25 animate-pulse" 
                                       : isSoon 
@@ -1154,8 +1170,8 @@ export default function EstoquePage() {
                       </div>
 
                       <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                        {editingProduct.price_history.map((hist: any, index: number) => {
-                          const prevHist = index > 0 ? editingProduct.price_history[index - 1] : null;
+                        {editingProduct.price_history.map((hist, index) => {
+                          const prevHist = index > 0 ? editingProduct.price_history![index - 1] : null;
                           const costDiff = prevHist ? hist.cost - prevHist.cost : 0;
                           const sellDiff = prevHist ? hist.sell - prevHist.sell : 0;
 

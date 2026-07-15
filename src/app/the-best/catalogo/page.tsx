@@ -53,6 +53,15 @@ export default function CatalogoPublicoPage() {
     const lower = normalizeText(name);
 
     if (
+      lower.includes("combo") ||
+      lower.includes("copao") ||
+      lower.includes("kit") ||
+      lower.includes("dose")
+    ) {
+      return "combos";
+    }
+
+    if (
       lower.includes("cerveja") ||
       lower.includes("heineken") ||
       lower.includes("budweiser") ||
@@ -89,15 +98,6 @@ export default function CatalogoPublicoPage() {
       lower.includes("licor")
     ) {
       return "destilados";
-    }
-
-    if (
-      lower.includes("combo") ||
-      lower.includes("copao") ||
-      lower.includes("kit") ||
-      lower.includes("dose")
-    ) {
-      return "combos";
     }
 
     return "outros";

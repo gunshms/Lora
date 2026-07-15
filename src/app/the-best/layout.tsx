@@ -162,7 +162,39 @@ alter table thebest_stock add column if not exists is_returnable boolean;
 alter table thebest_stock add column if not exists deposit_fee numeric;
 alter table thebest_stock add column if not exists batches jsonb;
 alter table thebest_stock add column if not exists image_url text;
-alter table thebest_fixed add column if not exists receipt text;`;
+alter table thebest_fixed add column if not exists receipt text;
+
+-- Seguranca: leitura publica apenas do cardapio e escrita somente para operadores autenticados
+alter table thebest_costs enable row level security;
+alter table thebest_ideas enable row level security;
+alter table thebest_stock enable row level security;
+alter table thebest_fixed enable row level security;
+alter table thebest_sales enable row level security;
+alter table thebest_debts enable row level security;
+alter table thebest_audit enable row level security;
+
+revoke all on thebest_costs, thebest_ideas, thebest_fixed, thebest_sales, thebest_debts, thebest_audit from anon;
+revoke insert, update, delete on thebest_stock from anon;
+grant select on thebest_stock to anon;
+grant select, insert, update, delete on thebest_costs, thebest_ideas, thebest_stock, thebest_fixed, thebest_sales, thebest_debts, thebest_audit to authenticated;
+
+drop policy if exists "Publico visualiza estoque" on thebest_stock;
+create policy "Publico visualiza estoque" on thebest_stock for select to anon using (true);
+
+drop policy if exists "Operadores gerenciam custos" on thebest_costs;
+create policy "Operadores gerenciam custos" on thebest_costs for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam ideias" on thebest_ideas;
+create policy "Operadores gerenciam ideias" on thebest_ideas for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam estoque" on thebest_stock;
+create policy "Operadores gerenciam estoque" on thebest_stock for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam contas fixas" on thebest_fixed;
+create policy "Operadores gerenciam contas fixas" on thebest_fixed for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam vendas" on thebest_sales;
+create policy "Operadores gerenciam vendas" on thebest_sales for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam fiado" on thebest_debts;
+create policy "Operadores gerenciam fiado" on thebest_debts for all to authenticated using (true) with check (true);
+drop policy if exists "Operadores gerenciam auditoria" on thebest_audit;
+create policy "Operadores gerenciam auditoria" on thebest_audit for all to authenticated using (true) with check (true);`;
 
   return (
     <div className="flex flex-col h-full justify-between p-6 bg-[#080809] border-r border-white/5 relative z-10">
@@ -468,6 +500,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   const [selectedUser, setSelectedUser] = useState<"Oliveira" | "Marques">("Oliveira");
   const [pinInput, setPinInput] = useState("");
   const [loginError, setLoginError] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   if (!mounted) {
     return <PageLoadingSkeleton />;
@@ -484,9 +517,11 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
   // Gatekeeper: If no active user session, block dashboard and display login portal
   if (!currentUser) {
-    const handleLoginSubmit = (e: React.FormEvent) => {
+    const handleLoginSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      const success = login(selectedUser, pinInput);
+      setIsLoggingIn(true);
+      const success = await login(selectedUser, pinInput);
+      setIsLoggingIn(false);
       if (!success) {
         setLoginError(true);
         setPinInput("");
@@ -576,9 +611,10 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full py-3 bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase hover:bg-white/90 transition-all shadow-lg"
+              disabled={isLoggingIn}
+              className="w-full py-3 bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase hover:bg-white/90 transition-all shadow-lg disabled:cursor-wait disabled:opacity-60"
             >
-              Autenticar
+              {isLoggingIn ? "Conectando..." : "Autenticar"}
             </button>
           </form>
 

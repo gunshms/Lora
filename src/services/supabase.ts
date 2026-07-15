@@ -1,67 +1,48 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 let supabaseInstance: SupabaseClient | null = null;
-
-// Public client credentials are safe to expose in client-side bundles (this is the Supabase anon key)
-const DEFAULT_URL = "https://kqfzxejypkgvqwtdfpge.supabase.co";
-const DEFAULT_KEY = "sb_publishable_sbknzYwccISEVGsYEK_TAA_Ad3g2G3p";
+let supabaseInstanceKey: string | null = null;
 
 export interface SupabaseConfig {
   url: string;
   anonKey: string;
 }
 
-/**
- * Initializes and returns the Supabase client.
- * Uses hardcoded defaults to ensure zero-setup on production deploys like Netlify/Vercel.
- */
-export function getSupabaseClient(customConfig?: SupabaseConfig | null): SupabaseClient | null {
-  // 1. If custom configuration is provided (from settings if overridden)
-  if (customConfig && customConfig.url && customConfig.anonKey) {
-    try {
-      const cleanUrl = customConfig.url.trim();
-      const cleanKey = customConfig.anonKey.trim();
-      
-      if (cleanUrl.startsWith("http") && cleanKey.length > 10) {
-        supabaseInstance = createClient(cleanUrl, cleanKey, {
-          auth: { persistSession: false },
-        });
-        return supabaseInstance;
-      }
-    } catch (error) {
-      console.error("Erro ao criar cliente Supabase customizado:", error);
-      return null;
-    }
+const getActiveConfig = (customConfig?: SupabaseConfig | null): SupabaseConfig | null => {
+  const url = customConfig?.url || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = customConfig?.anonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url?.trim().startsWith("http") || !anonKey || anonKey.trim().length <= 10) {
+    return null;
   }
 
-  // 2. Return already initialized instance if available
-  if (supabaseInstance) {
+  return { url: url.trim(), anonKey: anonKey.trim() };
+};
+
+export function getSupabaseClient(customConfig?: SupabaseConfig | null): SupabaseClient | null {
+  const config = getActiveConfig(customConfig);
+  if (!config) return null;
+
+  const instanceKey = `${config.url}|${config.anonKey}`;
+  if (supabaseInstance && supabaseInstanceKey === instanceKey) {
     return supabaseInstance;
   }
 
-  // 3. Fallback to environment variables if available
-  const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (envUrl && envKey) {
-    try {
-      supabaseInstance = createClient(envUrl.trim(), envKey.trim(), {
-        auth: { persistSession: false },
-      });
-      return supabaseInstance;
-    } catch (error) {
-      console.error("Erro ao criar cliente Supabase com vars:", error);
-    }
-  }
-
-  // 4. Ultimate fallback to hardcoded default credentials (ensures zero-setup online)
   try {
-    supabaseInstance = createClient(DEFAULT_URL, DEFAULT_KEY, {
-      auth: { persistSession: false },
+    supabaseInstance = createClient(config.url, config.anonKey, {
+      auth: {
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        persistSession: true,
+        storageKey: "thebest-supabase-auth",
+      },
     });
+    supabaseInstanceKey = instanceKey;
     return supabaseInstance;
   } catch (error) {
-    console.error("Erro ao criar cliente Supabase padrão:", error);
+    console.error("Erro ao criar cliente Supabase:", error);
+    supabaseInstance = null;
+    supabaseInstanceKey = null;
     return null;
   }
 }

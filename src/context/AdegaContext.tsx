@@ -162,8 +162,8 @@ interface AdegaContextType {
   setHeldCarts: React.Dispatch<React.SetStateAction<HeldCart[]>>;
 
   // Auth actions
-  login: (username: "Oliveira" | "Marques", pin: string) => boolean;
-  logout: () => void;
+  login: (username: "Oliveira" | "Marques", pin: string) => Promise<boolean>;
+  logout: () => Promise<void>;
 
   // Cost actions
   addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean, installmentsCount?: string, receipt?: string) => Promise<boolean>;
@@ -212,6 +212,21 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   if (typeof error === "string") return error;
   return fallback;
 };
+
+const getOperatorFromEmail = (email?: string): "Oliveira" | "Marques" | null => {
+  if (email === "oliveira@thebest.app") return "Oliveira";
+  if (email === "marques@thebest.app") return "Marques";
+  return null;
+};
+
+function readLocalItems<T>(key: string): T[] {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) as T[] : [];
+  } catch {
+    return [];
+  }
+}
 
 export function AdegaProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -332,7 +347,25 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     const client = getSupabaseClient(config);
 
     if (client) {
+      const activeClient = client;
       try {
+        const { data: sessionData } = await client.auth.getSession();
+
+        if (!sessionData.session) {
+          if (window.location.pathname !== "/the-best/catalogo") {
+            setIsCloudMode(false);
+            loadLocalFallback();
+            return;
+          }
+
+          const stockRes = await client.from("thebest_stock").select("*");
+          if (stockRes.error) throw new Error(`Erro na tabela de estoque: ${stockRes.error.message}`);
+
+          setStock(applyTheBestPriceCatalog(stockRes.data || []).stock);
+          setIsCloudMode(true);
+          return;
+        }
+
         const [costsRes, ideasRes, stockRes, fixedRes, salesRes, debtsRes, auditRes] = await Promise.all([
           client.from("thebest_costs").select("*").order("date", { ascending: false }),
           client.from("thebest_ideas").select("*").order("date", { ascending: false }),
@@ -347,48 +380,42 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         if (ideasRes.error) throw new Error(`Erro na tabela de ideias: ${ideasRes.error.message}`);
         if (stockRes.error) throw new Error(`Erro na tabela de estoque: ${stockRes.error.message}`);
 
-        // Handle fixed costs error gracefully
-        if (fixedRes.error) {
-          console.warn("Tabela 'thebest_fixed' não encontrada. Usando dados locais.", fixedRes.error.message);
-          const localFixed = localStorage.getItem("thebest_fixed");
-          if (localFixed) setFixedCosts(JSON.parse(localFixed));
-        } else {
-          setFixedCosts(fixedRes.data || []);
+        if (fixedRes.error) throw new Error(`Erro na tabela de contas fixas: ${fixedRes.error.message}`);
+        if (salesRes.error) throw new Error(`Erro na tabela de vendas: ${salesRes.error.message}`);
+        if (debtsRes.error) throw new Error(`Erro na tabela de fiado: ${debtsRes.error.message}`);
+        if (auditRes.error) throw new Error(`Erro na tabela de auditoria: ${auditRes.error.message}`);
+
+        async function seedWhenCloudIsEmpty<T extends { id: string }>(
+          table: string,
+          cloudRows: T[],
+          localKey: string,
+        ): Promise<T[]> {
+          if (cloudRows.length > 0) return cloudRows;
+
+          const localRows = readLocalItems<T>(localKey);
+          if (localRows.length > 0) {
+            const { error } = await activeClient.from(table).upsert(localRows, { onConflict: "id" });
+            if (error) throw new Error(`Erro ao migrar ${table}: ${error.message}`);
+          }
+          return localRows;
         }
 
-        // Handle sales table error gracefully
-        if (salesRes.error) {
-          console.warn("Tabela 'thebest_sales' não encontrada. Usando dados locais.", salesRes.error.message);
-          const localSales = localStorage.getItem("thebest_sales");
-          if (localSales) setSales(JSON.parse(localSales));
-        } else {
-          setSales(salesRes.data || []);
-        }
+        const cloudStock = stockRes.data || [];
+        const costsData = await seedWhenCloudIsEmpty("thebest_costs", costsRes.data || [], "thebest_costs");
+        const ideasData = await seedWhenCloudIsEmpty("thebest_ideas", ideasRes.data || [], "thebest_ideas");
+        const fixedData = await seedWhenCloudIsEmpty("thebest_fixed", fixedRes.data || [], "thebest_fixed");
+        const salesData = await seedWhenCloudIsEmpty("thebest_sales", salesRes.data || [], "thebest_sales");
+        const debtsData = await seedWhenCloudIsEmpty("thebest_debts", debtsRes.data || [], "thebest_debts");
+        const auditData = await seedWhenCloudIsEmpty("thebest_audit", auditRes.data || [], "thebest_audit");
+        const stockSource = cloudStock.length > 0
+          ? cloudStock
+          : readLocalItems<StockItem>("thebest_stock");
+        const priceCatalogResult = applyTheBestPriceCatalog(stockSource);
 
-        // Handle debts table error gracefully
-        if (debtsRes.error) {
-          console.warn("Tabela 'thebest_debts' não encontrada. Usando dados locais.", debtsRes.error.message);
-          const localDebts = localStorage.getItem("thebest_debts");
-          if (localDebts) setDebts(JSON.parse(localDebts));
-        } else {
-          setDebts(debtsRes.data || []);
-        }
-
-        // Handle audit table error gracefully
-        if (auditRes.error) {
-          console.warn("Tabela 'thebest_audit' não encontrada. Usando dados locais.", auditRes.error.message);
-          const localAudit = localStorage.getItem("thebest_audit");
-          if (localAudit) setAuditLog(JSON.parse(localAudit));
-        } else {
-          setAuditLog(auditRes.data || []);
-        }
-
-        const priceCatalogResult = applyTheBestPriceCatalog(stockRes.data || []);
-
-        if (priceCatalogResult.changedIds.length > 0) {
+        if (cloudStock.length === 0 || priceCatalogResult.changedIds.length > 0) {
           const changedIdSet = new Set(priceCatalogResult.changedIds);
           const changedRows = priceCatalogResult.stock
-            .filter((item) => changedIdSet.has(item.id))
+            .filter((item) => cloudStock.length === 0 || changedIdSet.has(item.id))
             .map((item) => ({
               id: item.id,
               name: item.name,
@@ -414,8 +441,12 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        setCosts(costsRes.data || []);
-        setIdeas(ideasRes.data || []);
+        setCosts(costsData);
+        setIdeas(ideasData);
+        setFixedCosts(fixedData);
+        setSales(salesData);
+        setDebts(debtsData);
+        setAuditLog(auditData);
         setStock(priceCatalogResult.stock);
         setIsCloudMode(true);
       } catch (err: unknown) {
@@ -451,11 +482,6 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const savedUser = localStorage.getItem("thebest_current_user");
-    if (savedUser === "Oliveira" || savedUser === "Marques") {
-      setCurrentUser(savedUser);
-    }
-
     // Recover POS sessions from local storage
     const savedActiveCart = localStorage.getItem("thebest_pdv_active_cart");
     const savedHeldCarts = localStorage.getItem("thebest_pdv_held_carts");
@@ -465,7 +491,23 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     if (savedHeldCarts) setHeldCarts(JSON.parse(savedHeldCarts));
     if (savedPosState) setIsPosActive(JSON.parse(savedPosState));
 
-    initializeCloudData(activeConfig);
+    const restoreSession = async () => {
+      const client = getSupabaseClient(activeConfig);
+      const { data } = client ? await client.auth.getSession() : { data: { session: null } };
+      const operator = getOperatorFromEmail(data.session?.user.email);
+
+      if (operator) {
+        setCurrentUser(operator);
+        localStorage.setItem("thebest_current_user", operator);
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem("thebest_current_user");
+      }
+
+      await initializeCloudData(activeConfig);
+    };
+
+    void restoreSession();
   }, [initializeCloudData]);
 
   const reconnect = async () => {
@@ -473,25 +515,58 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   };
 
   // Auth Actions
-  const login = (username: "Oliveira" | "Marques", pin: string): boolean => {
-    const credentials = {
-      Oliveira: "1105",
-      Marques: "3009"
-    };
+  const login = async (username: "Oliveira" | "Marques", pin: string): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/the-best/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, pin }),
+        cache: "no-store",
+      });
+      const result = await response.json() as {
+        accessToken?: string;
+        refreshToken?: string;
+        error?: string;
+      };
 
-    if (credentials[username] === pin) {
+      if (!response.ok || !result.accessToken || !result.refreshToken) {
+        setDbError(result.error || "Nao foi possivel autenticar o operador.");
+        return false;
+      }
+
+      const client = getSupabaseClient(dbConfig);
+      if (!client) {
+        setDbError("A conexao com o Supabase nao esta configurada.");
+        return false;
+      }
+
+      const { error } = await client.auth.setSession({
+        access_token: result.accessToken,
+        refresh_token: result.refreshToken,
+      });
+      if (error) {
+        setDbError(error.message);
+        return false;
+      }
+
       setCurrentUser(username);
       localStorage.setItem("thebest_current_user", username);
-      logAction(`Entrou no sistema`, username);
+      setDbError(null);
+      await initializeCloudData(dbConfig);
+      await logAction("Entrou no sistema", username);
       return true;
+    } catch (error) {
+      setDbError(getErrorMessage(error, "Falha ao autenticar na nuvem."));
+      return false;
     }
-    return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
     if (currentUser) {
-      logAction(`Saiu do sistema`, currentUser);
+      await logAction("Saiu do sistema", currentUser);
     }
+    const client = getSupabaseClient(dbConfig);
+    if (client) await client.auth.signOut();
     setCurrentUser(null);
     localStorage.removeItem("thebest_current_user");
   };
@@ -539,7 +614,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { error } = await client.from("thebest_costs").select("id").limit(1);
+      const { error } = await client.from("thebest_stock").select("id").limit(1);
 
       if (error) {
         throw new Error(`Conexão OK, mas tabelas não encontradas: ${error.message}`);

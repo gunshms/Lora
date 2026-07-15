@@ -2,13 +2,13 @@
 
 import React, { useState, useMemo } from "react";
 import { useAdega, SaleItem, DebtItem } from "@/context/AdegaContext";
-import { 
-  Receipt, 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingBag, 
-  Trash2, 
-  Wine, 
+import {
+  Receipt,
+  TrendingUp,
+  DollarSign,
+  ShoppingBag,
+  Trash2,
+  Wine,
   CalendarDays,
   Percent,
   Calendar,
@@ -23,11 +23,11 @@ import {
 } from "lucide-react";
 
 export default function VendasPage() {
-  const { 
-    sales, 
-    deleteSale, 
-    debts, 
-    settleDebt, 
+  const {
+    sales,
+    deleteSale,
+    debts,
+    settleDebt,
     renameDebtCustomer,
     fixedCosts,
     costs,
@@ -91,19 +91,19 @@ export default function VendasPage() {
   const calendarDays = useMemo(() => {
     const daysInMonth = new Date(activeYear, activeMonth + 1, 0).getDate();
     const firstDayIndex = new Date(activeYear, activeMonth, 1).getDay();
-    
+
     const days: ({ type: "empty"; id: string } | { type: "day"; dayNumber: number; id: string })[] = [];
-    
+
     // Fill empty slots before start of month
     for (let i = 0; i < firstDayIndex; i++) {
       days.push({ type: "empty", id: `empty-${i}` });
     }
-    
+
     // Fill active month days
     for (let d = 1; d <= daysInMonth; d++) {
       days.push({ type: "day", dayNumber: d, id: `day-${d}` });
     }
-    
+
     return days;
   }, [activeYear, activeMonth]);
 
@@ -114,7 +114,7 @@ export default function VendasPage() {
       const d = new Date(s.date);
       return d.getFullYear() === activeYear && d.getMonth() === activeMonth;
     });
-    
+
     // Exclude partner withdrawals from general business revenue
     const generalSales = monthlySales.filter(s => s.payment_method !== "consumo_oliveira" && s.payment_method !== "consumo_marques");
     const revenue = generalSales.reduce((sum, s) => sum + s.total_amount, 0);
@@ -342,7 +342,7 @@ export default function VendasPage() {
 
   return (
     <div className="space-y-8 py-4">
-      
+
       {/* Title Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/5">
         <div>
@@ -422,7 +422,7 @@ export default function VendasPage() {
 
       {/* Main Grid: Interactive Calendar & Societal DRE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
+
         {/* Left Side (7 Cols): Calendar Panel */}
         <div className="lg:col-span-7 bg-[#0b0b0d] border border-white/5 rounded-xl p-4 sm:p-6 space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-white/5">
@@ -430,10 +430,10 @@ export default function VendasPage() {
               <CalendarDays className="w-4.5 h-4.5 text-white/70" />
               <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase">Faturamento Diário</h3>
             </div>
-            
+
             {/* Month Nav Controls */}
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={handlePrevMonth}
                 className="p-1.5 rounded-lg border border-white/5 bg-white/[0.01] hover:bg-white/5 text-white/60 hover:text-white transition-colors"
               >
@@ -442,7 +442,7 @@ export default function VendasPage() {
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-white whitespace-nowrap">
                 {monthsList[activeMonth]} {activeYear}
               </span>
-              <button 
+              <button
                 onClick={handleNextMonth}
                 className="p-1.5 rounded-lg border border-white/5 bg-white/[0.01] hover:bg-white/5 text-white/60 hover:text-white transition-colors"
               >
@@ -470,9 +470,9 @@ export default function VendasPage() {
                 const dayNum = item.dayNumber;
                 const hasSales = !!salesByDay[dayNum];
                 const isSelected = selectedDay === dayNum;
-                
+
                 // Calculate total revenue for this day
-                const daySalesRevenue = hasSales 
+                const daySalesRevenue = hasSales
                   ? salesByDay[dayNum].reduce((sum, s) => sum + s.total_amount, 0)
                   : 0;
 
@@ -489,7 +489,7 @@ export default function VendasPage() {
                     className={`aspect-square relative flex flex-col justify-between p-1 rounded border transition-all duration-300 ${
                       isSelected
                         ? "bg-white text-black border-white shadow-lg shadow-white/5 scale-102"
-                        : hasSales 
+                        : hasSales
                           ? "bg-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/60 text-white"
                           : "bg-white/[0.01] border-white/5 hover:border-white/10 text-white/60"
                     }`}
@@ -559,7 +559,7 @@ export default function VendasPage() {
 
             {/* DRE Rows */}
             <div className="space-y-3 bg-black/40 border border-white/5 p-4 rounded-xl">
-              
+
               {/* Row 1: Faturamento */}
               <div className="flex justify-between items-center text-xs pb-2 border-b border-white/5">
                 <div className="space-y-0.5">
@@ -649,10 +649,10 @@ export default function VendasPage() {
 
                   {/* Neon Glowing Progress Bar Container */}
                   <div className="w-full h-2.5 bg-white/[0.02] border border-white/5 rounded-full overflow-hidden relative">
-                    <div 
+                    <div
                       className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                        isBreakevenReached 
-                          ? "bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" 
+                        isBreakevenReached
+                          ? "bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
                           : "bg-gradient-to-r from-sky-500 to-indigo-400 shadow-[0_0_8px_rgba(56,189,248,0.4)]"
                       }`}
                       style={{ width: `${progressPercent}%` }}
@@ -674,13 +674,13 @@ export default function VendasPage() {
               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Divisão de Lucro Societário (50/50)</span>
               <p className="text-[8px] font-mono text-white/20 uppercase">COGS de Consumo Próprio é debitado da quota do respectivo sócio</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               {/* Oliveira Card */}
               <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-2 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-sky-500/[0.01] rounded-full blur-xl pointer-events-none" />
                 <span className="text-[9px] font-mono text-sky-400 uppercase tracking-wider block font-bold">Oliveira</span>
-                
+
                 <div className="space-y-1 text-[10px] font-mono">
                   <div className="flex justify-between text-white/40">
                     <span>Quota Base (50%):</span>
@@ -703,7 +703,7 @@ export default function VendasPage() {
               <div className="p-3 bg-black/40 border border-white/5 rounded-lg space-y-2 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-purple-500/[0.01] rounded-full blur-xl pointer-events-none" />
                 <span className="text-[9px] font-mono text-purple-400 uppercase tracking-wider block font-bold">Marques</span>
-                
+
                 <div className="space-y-1 text-[10px] font-mono">
                   <div className="flex justify-between text-white/40">
                     <span>Quota Base (50%):</span>
@@ -745,7 +745,7 @@ export default function VendasPage() {
 
       {/* SEÇÃO 3: INTELIGÊNCIA DE NEGÓCIOS & MARGENS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
+
         {/* Bloco A: BI & Pico de Vendas */}
         <div className="bg-[#0b0b0d] border border-white/5 rounded-xl p-4 sm:p-6 space-y-6">
           <div className="flex items-center gap-2 pb-4 border-b border-white/5">
@@ -754,20 +754,20 @@ export default function VendasPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Gráfico de Vendas por Dia da Semana */}
             <div className="space-y-4">
               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Pico de Faturamento (Semanal)</span>
-              
+
               <div className="flex justify-between items-end h-32 pt-6 px-1 border-b border-white/5 relative">
                 {salesByWeekday.map((day, idx) => (
                   <div key={idx} className="flex flex-col items-center gap-2 flex-1 group">
                     <span className="opacity-0 group-hover:opacity-100 absolute top-0 text-[8px] font-mono bg-white text-black px-1.5 py-0.5 rounded transition-opacity duration-300 pointer-events-none whitespace-nowrap z-10">
                       {formatCurrency(day.val)}
                     </span>
-                    <div 
-                      className="w-4 sm:w-5 bg-gradient-to-t from-emerald-500/10 to-emerald-400 rounded-t border-t border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.2)] transition-all duration-500" 
-                      style={{ height: `${Math.max(5, day.percentage)}%` }} 
+                    <div
+                      className="w-4 sm:w-5 bg-gradient-to-t from-emerald-500/10 to-emerald-400 rounded-t border-t border-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.2)] transition-all duration-500"
+                      style={{ height: `${Math.max(5, day.percentage)}%` }}
                     />
                     <span className="text-[8px] font-mono text-white/40 uppercase">{day.day}</span>
                   </div>
@@ -779,7 +779,7 @@ export default function VendasPage() {
             {/* Top 5 Produtos mais Vendidos */}
             <div className="space-y-3">
               <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest block">Top 5 Produtos mais Vendidos</span>
-              
+
               {topProducts.length > 0 ? (
                 <div className="space-y-2">
                   {topProducts.map((p, idx) => (
@@ -789,8 +789,8 @@ export default function VendasPage() {
                         <span className="font-mono text-white/40">{p.qty} unid.</span>
                       </div>
                       <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 relative">
-                        <div 
-                          className="absolute inset-y-0 left-0 bg-emerald-400 rounded-full" 
+                        <div
+                          className="absolute inset-y-0 left-0 bg-emerald-400 rounded-full"
                           style={{ width: `${p.relativePercentage}%` }}
                         />
                       </div>
@@ -814,7 +814,7 @@ export default function VendasPage() {
               <Percent className="w-4.5 h-4.5 text-sky-400" />
               <h3 className="font-headline font-bold text-base tracking-wider text-white uppercase">Saúde & Precificação</h3>
             </div>
-            
+
             {/* Health Badge */}
             {monthlyMetrics.revenue > 0 ? (
               <span className={`px-2.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase border ${
@@ -835,13 +835,13 @@ export default function VendasPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            
+
             {/* Margem de Contribuição Geral */}
             <div className="md:col-span-5 bg-black/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between min-h-[140px]">
               <div>
                 <span className="text-[9px] font-mono text-white/40 uppercase tracking-wider block">Margem de Contribuição</span>
                 <span className="text-2xl font-headline font-black text-white mt-1 block tracking-wide">
-                  {monthlyMetrics.revenue > 0 
+                  {monthlyMetrics.revenue > 0
                     ? `${Math.round(((monthlyMetrics.revenue - monthlyMetrics.cogs) / monthlyMetrics.revenue) * 100)}%`
                     : "0%"
                   }
@@ -902,8 +902,8 @@ export default function VendasPage() {
               const isSettling = settlingDebtId === debt.id;
 
               return (
-                <div 
-                  key={debt.id} 
+                <div
+                  key={debt.id}
                   className="bg-black/30 border border-white/5 p-4 rounded-xl space-y-4 hover:border-white/10 transition-colors relative flex flex-col justify-between"
                 >
                   <div className="space-y-3">
@@ -911,20 +911,20 @@ export default function VendasPage() {
                     <div className="flex justify-between items-start gap-4">
                       {isEditing ? (
                         <div className="flex items-center gap-2 w-full">
-                          <input 
-                            type="text" 
-                            value={editingName} 
+                          <input
+                            type="text"
+                            value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             className="bg-black border border-white/20 rounded px-2 py-1 text-xs text-white focus:outline-none w-full font-mono"
                           />
-                          <button 
+                          <button
                             onClick={() => saveRename(debt.id)}
                             className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                             title="Salvar"
                           >
                             <Check className="w-3.5 h-3.5" />
                           </button>
-                          <button 
+                          <button
                             onClick={() => setEditingDebtId(null)}
                             className="p-1.5 rounded bg-white/5 text-white/50"
                             title="Cancelar"
@@ -939,7 +939,7 @@ export default function VendasPage() {
                               .filter(d => d.customer_name.toLowerCase().trim() === debt.customer_name.toLowerCase().trim())
                               .reduce((sum, d) => sum + d.amount, 0);
 
-                            const scoreBadge = customerTotalDebt >= 150 
+                            const scoreBadge = customerTotalDebt >= 150
                               ? { label: "Bloqueado", styles: "bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(239,68,68,0.1)] font-bold animate-pulse" }
                               : customerTotalDebt > 50
                               ? { label: "Atrasado", styles: "bg-amber-500/10 text-amber-400 border-amber-500/20" }
@@ -954,7 +954,7 @@ export default function VendasPage() {
                                   <span className={`px-1.5 py-0.5 rounded text-[7px] font-mono uppercase border ${scoreBadge.styles}`}>
                                     {scoreBadge.label}
                                   </span>
-                                  <button 
+                                  <button
                                     onClick={() => startEditingName(debt)}
                                     className="opacity-20 group-hover:opacity-100 p-0.5 text-white/60 hover:text-white transition-opacity"
                                     title="Editar nome"
@@ -1048,7 +1048,7 @@ export default function VendasPage() {
         {filteredSales.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[50vh] overflow-y-auto pr-2">
             {filteredSales.map((sale) => (
-              <div 
+              <div
                 key={sale.id}
                 className="p-4 bg-[#050505] border border-white/5 rounded-xl space-y-3 hover:border-white/10 transition-colors flex flex-col justify-between"
               >

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseClient, SupabaseConfig } from "@/services/supabase";
+import { applyTheBestPriceCatalog } from "@/lib/theBestPriceCatalog";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -168,14 +169,15 @@ interface AdegaContextType {
   addCost: (description: string, amount: string, buyer: "gu" | "melhor", paid: boolean, installmentsCount?: string, receipt?: string) => Promise<boolean>;
   toggleCostPaid: (id: string) => Promise<void>;
   deleteCost: (id: string) => Promise<void>;
-  
+
   // Idea actions
   addIdea: (title: string, description: string, category: string, color: IdeaItem["color"]) => Promise<boolean>;
   deleteIdea: (id: string) => Promise<void>;
-  
+
   // Stock actions
   addStock: (name: string, quantity: number, status: StockItem["status"], priceCost?: string, priceSell?: string, barcode?: string, isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"], imageUrl?: string) => Promise<boolean>;
   adjustStockQty: (id: string, amount: number) => Promise<void>;
+  setStockQty: (id: string, qty: number) => Promise<void>;
   toggleStockStatus: (id: string) => Promise<void>;
   deleteStock: (id: string) => Promise<void>;
   updateStockPrices: (id: string, priceCost: string, priceSell: string, barcode?: string, name?: string, status?: StockItem["status"], recipe?: RecipeIngredient[], isReturnable?: boolean, depositFee?: string, batches?: StockItem["batches"], imageUrl?: string) => Promise<boolean>;
@@ -188,7 +190,7 @@ interface AdegaContextType {
   // Sales actions
   registerSale: (items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[], paymentMethod: "pix" | "dinheiro" | "credito" | "debito" | "consumo_oliveira" | "consumo_marques" | "cortesia", discountAmount?: number) => Promise<boolean>;
   deleteSale: (id: string) => Promise<void>;
-  
+
   // Debt/Fiado actions
   registerDebt: (customerName: string, items: { id: string; name: string; quantity: number; price_cost: number; price_sell: number; returned_bottles_count?: number; is_returnable?: boolean; deposit_fee?: number }[], discountAmount?: number) => Promise<boolean>;
   settleDebt: (id: string, paymentMethod: "pix" | "dinheiro" | "credito" | "debito") => Promise<void>;
@@ -315,7 +317,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     if (localCosts) setCosts(JSON.parse(localCosts));
     if (localIdeas) setIdeas(JSON.parse(localIdeas));
-    if (localStock) setStock(JSON.parse(localStock));
+    const localStockItems = localStock ? JSON.parse(localStock) as StockItem[] : [];
+    setStock(applyTheBestPriceCatalog(localStockItems).stock);
     if (localFixed) setFixedCosts(JSON.parse(localFixed));
     if (localSales) setSales(JSON.parse(localSales));
     if (localDebts) setDebts(JSON.parse(localDebts));
@@ -380,12 +383,42 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           setAuditLog(auditRes.data || []);
         }
 
+        const priceCatalogResult = applyTheBestPriceCatalog(stockRes.data || []);
+
+        if (priceCatalogResult.changedIds.length > 0) {
+          const changedIdSet = new Set(priceCatalogResult.changedIds);
+          const changedRows = priceCatalogResult.stock
+            .filter((item) => changedIdSet.has(item.id))
+            .map((item) => ({
+              id: item.id,
+              name: item.name,
+              quantity: item.quantity,
+              status: item.status,
+              price_cost: item.price_cost || 0,
+              price_sell: item.price_sell || 0,
+              barcode: item.barcode || null,
+              recipe: item.recipe || null,
+              price_history: item.price_history || null,
+              is_returnable: item.is_returnable ?? null,
+              deposit_fee: item.deposit_fee ?? null,
+              batches: item.batches || null,
+              image_url: item.image_url || null,
+            }));
+
+          const { error: priceSyncError } = await client
+            .from("thebest_stock")
+            .upsert(changedRows, { onConflict: "id" });
+
+          if (priceSyncError) {
+            console.warn("Não foi possível sincronizar a tabela de preços:", priceSyncError.message);
+          }
+        }
+
         setCosts(costsRes.data || []);
         setIdeas(ideasRes.data || []);
-        setStock(stockRes.data || []);
+        setStock(priceCatalogResult.stock);
         setIsCloudMode(true);
       } catch (err: unknown) {
-        console.error("Supabase load error:", err);
         setDbError(getErrorMessage(err, "Falha ao consultar tabelas na nuvem."));
         setIsCloudMode(false);
         loadLocalFallback();
@@ -507,7 +540,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     try {
       const { error } = await client.from("thebest_costs").select("id").limit(1);
-      
+
       if (error) {
         throw new Error(`Conexão OK, mas tabelas não encontradas: ${error.message}`);
       }
@@ -559,10 +592,10 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       if (!currentStockItem) continue;
 
       const hasRecipe = currentStockItem.recipe && currentStockItem.recipe.length > 0;
-      const isSmartCombo = 
-        !hasRecipe && 
-        (item.name.toLowerCase().includes("copão") || 
-         item.name.toLowerCase().includes("copao") || 
+      const isSmartCombo =
+        !hasRecipe &&
+        (item.name.toLowerCase().includes("copão") ||
+         item.name.toLowerCase().includes("copao") ||
          item.name.toLowerCase().includes("combo") ||
          item.name.toLowerCase().includes("dose"));
 
@@ -572,13 +605,13 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           if (targetItem) {
             const nextQty = Math.max(0, targetItem.quantity - (ingredient.quantity * item.quantity));
             targetItem.quantity = parseFloat(nextQty.toFixed(2));
-            
+
             if (client) {
               await client.from("thebest_stock").update({ quantity: targetItem.quantity }).eq("id", targetItem.id);
             }
           }
         }
-        
+
         const nextComboQty = Math.max(0, currentStockItem.quantity - item.quantity);
         currentStockItem.quantity = parseFloat(nextComboQty.toFixed(2));
         if (client) {
@@ -644,9 +677,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   // Cost Actions
   const addCost = async (
-    description: string, 
-    amount: string, 
-    buyer: "gu" | "melhor", 
+    description: string,
+    amount: string,
+    buyer: "gu" | "melhor",
     paid: boolean,
     installmentsCount?: string,
     receipt?: string
@@ -724,7 +757,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         .from("thebest_costs")
         .update({ paid: updatedPaid })
         .eq("id", id);
-      
+
       if (error) {
         alert(`Erro ao atualizar na nuvem: ${error.message}`);
         return;
@@ -806,8 +839,8 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
   // Stock Actions
   const addStock = async (
-    name: string, 
-    quantity: number, 
+    name: string,
+    quantity: number,
     status: StockItem["status"],
     priceCost?: string,
     priceSell?: string,
@@ -867,7 +900,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         .from("thebest_stock")
         .update({ quantity: newQty })
         .eq("id", id);
-      
+
       if (error) {
         alert(`Erro ao atualizar quantidade na nuvem: ${error.message}`);
         return;
@@ -878,6 +911,33 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
       prev.map((s) => (s.id === id ? { ...s, quantity: newQty } : s))
     );
     logAction(`Ajustou quantidade de '${item.name}' em ${amount > 0 ? `+${amount}` : amount} (Saldo: ${newQty})`);
+  };
+
+  const setStockQty = async (id: string, qty: number) => {
+    const item = stock.find((s) => s.id === id);
+    if (!item) return;
+
+    const newQty = Math.max(0, qty);
+
+    if (isCloudMode) {
+      const client = getSupabaseClient(dbConfig);
+      if (!client) return;
+
+      const { error } = await client
+        .from("thebest_stock")
+        .update({ quantity: newQty })
+        .eq("id", id);
+
+      if (error) {
+        alert(`Erro ao atualizar quantidade na nuvem: ${error.message}`);
+        return;
+      }
+    }
+
+    setStock((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, quantity: newQty } : s))
+    );
+    logAction(`Alterou quantidade de '${item.name}' para ${newQty}`);
   };
 
   const toggleStockStatus = async (id: string) => {
@@ -899,7 +959,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         .from("thebest_stock")
         .update({ status: nextStatus })
         .eq("id", id);
-      
+
       if (error) {
         alert(`Erro ao atualizar status na nuvem: ${error.message}`);
         return;
@@ -932,9 +992,9 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
   };
 
   const updateStockPrices = async (
-    id: string, 
-    priceCost: string, 
-    priceSell: string, 
+    id: string,
+    priceCost: string,
+    priceSell: string,
     barcode?: string,
     name?: string,
     status?: StockItem["status"],
@@ -957,7 +1017,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     const currentSell = item.price_sell || 0;
     const nextCost = parsedCost;
     const nextSell = parsedSell;
-    
+
     let newHistory = item.price_history || [];
     if (currentCost !== nextCost || currentSell !== nextSell) {
       newHistory = [
@@ -991,7 +1051,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           .from("thebest_stock")
           .update(updateFields)
           .eq("id", id);
-        
+
         if (error) {
           console.error("Erro ao atualizar produto na nuvem:", error.message);
           return false;
@@ -1074,7 +1134,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         .from("thebest_fixed")
         .update({ paidThisMonth: updatedPaid })
         .eq("id", id);
-      
+
       if (error) {
         console.warn(`Erro ao atualizar conta fixa na nuvem: ${error.message}. Atualizando localmente.`);
         alert(`Erro ao atualizar quitação na nuvem: ${error.message}`);
@@ -1117,7 +1177,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
     const rawTotal = items.reduce((sum, item) => sum + (item.price_sell * item.quantity), 0);
     const isPersonalOrCortesia = paymentMethod === "consumo_oliveira" || paymentMethod === "consumo_marques" || paymentMethod === "cortesia";
     const totalAmount = isPersonalOrCortesia ? 0 : Math.max(0, rawTotal - discountAmount);
-    
+
     // Distribute discount proportionally across items for accurate profit math
     const discountRatio = rawTotal > 0 ? totalAmount / rawTotal : 0;
     const totalCost = items.reduce((sum, item) => sum + (item.price_cost * item.quantity), 0);
@@ -1125,7 +1185,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
     const newSale: SaleItem = {
       id: `sale-${Date.now()}`,
-      items: items.map(i => ({ 
+      items: items.map(i => ({
         id: i.id,
         name: i.name,
         quantity: i.quantity,
@@ -1322,6 +1382,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         deleteIdea,
         addStock,
         adjustStockQty,
+        setStockQty,
         toggleStockStatus,
         deleteStock,
         updateStockPrices,

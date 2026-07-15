@@ -51,16 +51,16 @@ export default function CatalogoPublicoPage() {
   // Category classifier helper
   const getProductCategory = (name: string): "cervejas" | "destilados" | "combos" | "outros" => {
     const lower = normalizeText(name);
-    
+
     if (
-      lower.includes("cerveja") || 
-      lower.includes("heineken") || 
-      lower.includes("budweiser") || 
-      lower.includes("bud") || 
-      lower.includes("amstel") || 
-      lower.includes("coron") || 
-      lower.includes("skol") || 
-      lower.includes("brahma") || 
+      lower.includes("cerveja") ||
+      lower.includes("heineken") ||
+      lower.includes("budweiser") ||
+      lower.includes("bud") ||
+      lower.includes("amstel") ||
+      lower.includes("coron") ||
+      lower.includes("skol") ||
+      lower.includes("brahma") ||
       lower.includes("original") ||
       lower.includes("stella") ||
       lower.includes("chopp") ||
@@ -71,13 +71,13 @@ export default function CatalogoPublicoPage() {
     }
 
     if (
-      lower.includes("absolut") || 
-      lower.includes("smirnoff") || 
-      lower.includes("whisky") || 
-      lower.includes("gin") || 
-      lower.includes("vodka") || 
-      lower.includes("red label") || 
-      lower.includes("ballantines") || 
+      lower.includes("absolut") ||
+      lower.includes("smirnoff") ||
+      lower.includes("whisky") ||
+      lower.includes("gin") ||
+      lower.includes("vodka") ||
+      lower.includes("red label") ||
+      lower.includes("ballantines") ||
       lower.includes("passaporte") ||
       lower.includes("chivas") ||
       lower.includes("jack daniels") ||
@@ -92,9 +92,8 @@ export default function CatalogoPublicoPage() {
     }
 
     if (
-      lower.includes("combo") || 
+      lower.includes("combo") ||
       lower.includes("copao") ||
-      lower.includes("copao") || 
       lower.includes("kit") ||
       lower.includes("dose")
     ) {
@@ -133,7 +132,7 @@ export default function CatalogoPublicoPage() {
       // Match search term
       const matchesSearch = normalizeText(item.name).includes(normalizedSearch) ||
         (item.barcode && item.barcode.includes(searchTerm));
-      
+
       // Match category
       const category = getProductCategory(item.name);
       const matchesCategory = selectedCategory === "todos" || category === selectedCategory;
@@ -175,11 +174,11 @@ export default function CatalogoPublicoPage() {
       <header className="w-full max-w-lg px-6 pt-10 pb-6 text-center space-y-4">
         <div className="flex justify-center mb-1">
           <div className="relative w-20 h-20 bg-amber-500/5 rounded-full flex items-center justify-center border border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.05)]">
-            <Image 
-              src="/adega/crest_white.png" 
-              alt="Adega Crest" 
-              width={56} 
-              height={56} 
+            <Image
+              src="/adega/crest_white.png"
+              alt="Adega Crest"
+              width={56}
+              height={56}
               className="object-contain invert opacity-90 animate-pulse"
             />
             <span className="absolute inset-0 rounded-full border border-dashed border-amber-500/25 animate-[spin_50s_linear_infinite]" />
@@ -210,7 +209,7 @@ export default function CatalogoPublicoPage() {
         {/* Search bar */}
         <div className="relative">
           <Search className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input 
+          <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -229,8 +228,8 @@ export default function CatalogoPublicoPage() {
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`flex items-center gap-1.5 px-4 py-2 border rounded-full text-[10px] font-mono uppercase tracking-wider transition-all duration-300 font-semibold flex-shrink-0 ${
-                  active 
-                    ? "bg-amber-400 text-black border-amber-400 font-bold shadow-[0_0_15px_rgba(245,158,11,0.2)]" 
+                  active
+                    ? "bg-amber-400 text-black border-amber-400 font-bold shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                     : "bg-white/[0.02] border-white/5 text-white/55 hover:text-white/80"
                 }`}
               >
@@ -274,7 +273,7 @@ export default function CatalogoPublicoPage() {
               {visibleProducts.map((item) => {
                 const isCerveja = getProductCategory(item.name) === "cervejas";
                 const isReturnable = !!item.is_returnable;
-                
+
                 return (
                   <motion.div
                     key={item.id}
@@ -372,9 +371,9 @@ export default function CatalogoPublicoPage() {
 
       {/* Floating order helper bar (Customer facilitator to order directly on WhatsApp) */}
       <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-6 z-40">
-        <a 
+        <a
           href={whatsappHref}
-          target="_blank" 
+          target="_blank"
           rel="noopener noreferrer"
           className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-headline font-black text-xs tracking-widest rounded-full uppercase transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)] hover:scale-[1.02] active:scale-[0.98] duration-300"
         >

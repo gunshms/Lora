@@ -3,15 +3,15 @@
 import React, { useState } from "react";
 import { RecipeIngredient, StockItem, useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Wine, 
-  Plus, 
-  Trash2, 
-  PlusCircle, 
-  MinusCircle, 
-  ShoppingBag, 
-  AlertCircle, 
-  HelpCircle, 
+import {
+  Wine,
+  Plus,
+  Trash2,
+  PlusCircle,
+  MinusCircle,
+  ShoppingBag,
+  AlertCircle,
+  HelpCircle,
   X,
   Edit2,
   Share2
@@ -37,16 +37,18 @@ const getProductDisplayImage = (item: { name: string; image_url?: string | null 
 };
 
 export default function EstoquePage() {
-  const { 
-    stock, 
-    addStock, 
-    adjustStockQty, 
-    toggleStockStatus, 
+  const {
+    stock,
+    addStock,
+    adjustStockQty,
+    setStockQty: setStockQtyDirectly,
+    toggleStockStatus,
     deleteStock,
     updateStockPrices,
     addCost
   } = useAdega();
 
+  const [editingQty, setEditingQty] = useState<{ [id: string]: string }>({});
   const [isAddingStock, setIsAddingStock] = useState(false);
   const [editingProduct, setEditingProduct] = useState<StockItem | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -74,12 +76,12 @@ export default function EstoquePage() {
   const [editBarcode, setEditBarcode] = useState("");
   const [editStatus, setEditStatus] = useState<StockStatus>("planned");
   const [editImageUrl, setEditImageUrl] = useState("");
-  
+
   // Returnable and Batches edit states - Idea 1 & 2
   const [editIsReturnable, setEditIsReturnable] = useState(false);
   const [editDepositFee, setEditDepositFee] = useState("");
   const [editBatches, setEditBatches] = useState<{ lot_number: string; expiration_date: string; quantity: number }[]>([]);
-  
+
   // New lot addition states
   const [newLotNumber, setNewLotNumber] = useState("");
   const [newLotExpirationDate, setNewLotExpirationDate] = useState("");
@@ -101,6 +103,8 @@ export default function EstoquePage() {
   const [editRecipe, setEditRecipe] = useState<RecipeIngredient[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [ingredientQty, setIngredientQty] = useState("0.25");
+  const [ingredientSearch, setIngredientSearch] = useState("");
+  const [isIngredientDropdownOpen, setIsIngredientDropdownOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +134,9 @@ export default function EstoquePage() {
     setEditRecipe(item.recipe || []);
     setSelectedIngredientId("");
     setIngredientQty("0.25");
-    
+    setIngredientSearch("");
+    setIsIngredientDropdownOpen(false);
+
     // Load returnable and batches
     setEditIsReturnable(!!item.is_returnable);
     setEditDepositFee(item.deposit_fee?.toString() || "");
@@ -190,6 +196,8 @@ export default function EstoquePage() {
 
     setEditRecipe(prev => [...prev, { product_id: selectedIngredientId, quantity: parsedQty }]);
     setSelectedIngredientId("");
+    setIngredientSearch("");
+    setIsIngredientDropdownOpen(false);
   };
 
   const handleRemoveIngredient = (productId: string) => {
@@ -230,8 +238,8 @@ export default function EstoquePage() {
           const cost = vUnComNode ? parseFloat(vUnComNode.textContent || "0") : 0;
 
           // Fuzzy match on stock products
-          const matchedProduct = stock.find(s => 
-            (ean && s.barcode === ean) || 
+          const matchedProduct = stock.find(s =>
+            (ean && s.barcode === ean) ||
             s.name.toLowerCase().trim() === name.toLowerCase().trim()
           );
 
@@ -255,7 +263,7 @@ export default function EstoquePage() {
 
   const handleConfirmXmlImport = async () => {
     setIsXmlModalOpen(false);
-    
+
     // Add variable cost of the invoice to finances!
     const noteDescription = `Entrada Nota (XML: ${xmlFileName.split(".xml")[0]})`;
     await addCost(noteDescription, xmlTotalValue.toFixed(2), "melhor", true);
@@ -299,7 +307,7 @@ export default function EstoquePage() {
     }
 
     alert(`Sucesso! Nota fiscal processada: ${successCount} produtos importados/atualizados e custo de ${formatCurrency(xmlTotalValue)} registrado.`);
-    
+
     // Reset file input
     const inputElement = document.getElementById("xml-upload-input") as HTMLInputElement;
     if (inputElement) inputElement.value = "";
@@ -330,7 +338,7 @@ export default function EstoquePage() {
 
   return (
     <div className="space-y-8 py-4">
-      
+
       {/* Page Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/5">
         <div>
@@ -341,7 +349,7 @@ export default function EstoquePage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => {
               const url = `${window.location.origin}/the-best/catalogo`;
               navigator.clipboard.writeText(url);
@@ -355,14 +363,14 @@ export default function EstoquePage() {
           </button>
 
           {/* Hidden XML input - Idea 4 */}
-          <input 
-            type="file" 
-            id="xml-upload-input" 
-            accept=".xml" 
-            className="hidden" 
-            onChange={handleXmlImport} 
+          <input
+            type="file"
+            id="xml-upload-input"
+            accept=".xml"
+            className="hidden"
+            onChange={handleXmlImport}
           />
-          <label 
+          <label
             htmlFor="xml-upload-input"
             className="flex items-center gap-2 px-4 py-2 border border-emerald-500/20 bg-emerald-950/10 text-emerald-400 font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-emerald-500/20 cursor-pointer transition-all duration-300"
           >
@@ -370,7 +378,7 @@ export default function EstoquePage() {
             Importar XML
           </label>
 
-          <button 
+          <button
             onClick={() => setIsAddingStock(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
           >
@@ -400,17 +408,17 @@ export default function EstoquePage() {
           {stock.map((item) => {
             const config = statusConfigs[item.status] || statusConfigs.planned;
             return (
-              <div 
-                key={item.id} 
+              <div
+                key={item.id}
                 className="bg-[#0b0b0d] border border-white/5 rounded-xl p-5 relative overflow-hidden group flex flex-col sm:flex-row gap-5 hover:border-white/10 transition-all duration-300 min-h-[170px]"
               >
                 {/* Decorative Wave Background Watermark */}
                 <div className="absolute right-[-10px] bottom-[-10px] w-20 h-20 opacity-[0.02] pointer-events-none group-hover:scale-110 group-hover:rotate-3 transition-all duration-700 select-none">
-                  <Image 
-                    src="/adega/crest_white.png" 
-                    alt="Wave watermark" 
-                    width={80} 
-                    height={80} 
+                  <Image
+                    src="/adega/crest_white.png"
+                    alt="Wave watermark"
+                    width={80}
+                    height={80}
                     className="object-contain invert"
                   />
                 </div>
@@ -439,7 +447,7 @@ export default function EstoquePage() {
                         <span className="font-headline font-bold text-sm tracking-wide text-white leading-tight group-hover:text-white transition-colors block truncate uppercase">
                           {item.name}
                         </span>
-                        
+
                         <div className="flex flex-wrap gap-1 mt-1">
                           {/* Returnable Badge */}
                           {item.is_returnable && (
@@ -481,7 +489,7 @@ export default function EstoquePage() {
                         </div>
                       </div>
 
-                      <button 
+                      <button
                         onClick={() => toggleStockStatus(item.id)}
                         className={`px-2 py-0.5 text-[8px] font-mono uppercase tracking-wider rounded border font-semibold flex-shrink-0 transition-all duration-300 ${config.styles}`}
                         title="Clique para mudar status"
@@ -507,19 +515,59 @@ export default function EstoquePage() {
                   <div className="flex items-center justify-between pt-1">
                     {/* Quantity controls */}
                     <div className="flex items-center gap-2 bg-black/30 border border-white/5 rounded-lg px-2 py-0.5">
-                      <button 
+                      <button
                         onClick={() => adjustStockQty(item.id, -1)}
                         className="p-0.5 rounded text-white/40 hover:text-white transition-colors"
                         title="Diminuir"
                       >
                         <MinusCircle className="w-4 h-4" />
                       </button>
-                      
-                      <span className="font-mono text-xs font-bold text-white min-w-[18px] text-center">
-                        {item.quantity}
-                      </span>
 
-                      <button 
+                      <input
+                        type="text"
+                        value={editingQty[item.id] !== undefined ? editingQty[item.id] : item.quantity.toString()}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "" || /^\d+$/.test(val)) {
+                            setEditingQty(prev => ({ ...prev, [item.id]: val }));
+                          }
+                        }}
+                        onBlur={() => {
+                          const val = editingQty[item.id];
+                          if (val !== undefined && val !== "") {
+                            const parsed = parseInt(val);
+                            if (!isNaN(parsed) && parsed !== item.quantity) {
+                              setStockQtyDirectly(item.id, parsed);
+                            }
+                          }
+                          setEditingQty(prev => {
+                            const copy = { ...prev };
+                            delete copy[item.id];
+                            return copy;
+                          });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = editingQty[item.id];
+                            if (val !== undefined && val !== "") {
+                              const parsed = parseInt(val);
+                              if (!isNaN(parsed) && parsed !== item.quantity) {
+                                setStockQtyDirectly(item.id, parsed);
+                              }
+                            }
+                            setEditingQty(prev => {
+                              const copy = { ...prev };
+                              delete copy[item.id];
+                              return copy;
+                            });
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        className="bg-transparent text-center font-mono text-xs font-bold text-white w-10 focus:outline-none focus:bg-white/10 rounded"
+                        title="Clique para editar a quantidade diretamente"
+                      />
+
+                      <button
                         onClick={() => adjustStockQty(item.id, 1)}
                         className="p-0.5 rounded text-white/40 hover:text-white transition-colors"
                         title="Aumentar"
@@ -530,24 +578,22 @@ export default function EstoquePage() {
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-1.5">
-                      {(item.status === "urgent" || item.quantity < 5) && (
-                        <Link 
-                          href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}`}
-                          className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400 transition-colors"
-                          title="Lançar custo de reposição"
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                        </Link>
-                      )}
-                      <button 
+                      <Link
+                        href={`/the-best/custos?autoDesc=Reposição de ${item.name}&autoVal=${item.price_cost || 0}&autoProdId=${item.id}`}
+                        className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400 transition-colors"
+                        title="Lançar custo de reposição"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                      </Link>
+                      <button
                         onClick={() => handleStartEdit(item)}
                         className="p-1 rounded hover:bg-white/5 text-white/40 hover:text-white transition-colors"
                         title="Editar dados e preços"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={() => deleteStock(item.id)}
                         className="p-1 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
                         title="Excluir item"
@@ -575,7 +621,7 @@ export default function EstoquePage() {
         {isAddingStock && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -583,14 +629,14 @@ export default function EstoquePage() {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between overflow-y-auto ${
-                isMobile 
-                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10" 
+                isMobile
+                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10"
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
@@ -600,7 +646,7 @@ export default function EstoquePage() {
                     <Plus className="w-5 h-5 text-emerald-400" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">ADICIONAR PRODUTO</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsAddingStock(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -611,8 +657,8 @@ export default function EstoquePage() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome da Bebida / Produto</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={stockName}
                       onChange={(e) => setStockName(e.target.value)}
@@ -624,8 +670,8 @@ export default function EstoquePage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Qtd Inicial</label>
-                      <input 
-                        type="number" 
+                      <input
+                        type="number"
                         required
                         min="1"
                         value={stockQty}
@@ -636,8 +682,8 @@ export default function EstoquePage() {
 
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
                         placeholder="Código EAN..."
@@ -649,8 +695,8 @@ export default function EstoquePage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Custo (R$)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={priceCost}
                         onChange={(e) => setPriceCost(e.target.value)}
                         placeholder="0,00"
@@ -660,8 +706,8 @@ export default function EstoquePage() {
 
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={priceSell}
                         onChange={(e) => setPriceSell(e.target.value)}
                         placeholder="0,00"
@@ -678,16 +724,16 @@ export default function EstoquePage() {
                         { id: "planned", label: "Planejado" },
                         { id: "in_stock", label: "Em Estoque" },
                       ].map((statusOption) => (
-                        <button 
+                        <button
                           key={statusOption.id}
                           type="button"
                           onClick={() => setStockStatus(statusOption.id as StockStatus)}
                           className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
-                            stockStatus === statusOption.id 
-                              ? statusOption.id === "urgent" 
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30" 
-                                : statusOption.id === "planned" 
-                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                            stockStatus === statusOption.id
+                              ? statusOption.id === "urgent"
+                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                : statusOption.id === "planned"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                                 : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                               : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                           }`}
@@ -700,8 +746,8 @@ export default function EstoquePage() {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">URL da Imagem (Thumbnail)</label>
-                    <input 
-                      type="url" 
+                    <input
+                      type="url"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="Cole uma URL personalizada (opcional)"
@@ -709,7 +755,7 @@ export default function EstoquePage() {
                     />
                   </div>
 
-                  <button 
+                  <button
                     type="submit"
                     className="w-full mt-6 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >
@@ -734,7 +780,7 @@ export default function EstoquePage() {
         {editingProduct && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -742,14 +788,14 @@ export default function EstoquePage() {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between overflow-y-auto ${
-                isMobile 
-                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10" 
+                isMobile
+                  ? "w-full h-[90vh] rounded-t-2xl border-t border-white/10"
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
@@ -759,7 +805,7 @@ export default function EstoquePage() {
                     <Edit2 className="w-5 h-5 text-emerald-400" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">EDITAR PRODUTO</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setEditingProduct(null)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -770,8 +816,8 @@ export default function EstoquePage() {
                 <form onSubmit={handleEditSubmit} className="space-y-5">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome da Bebida / Produto</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -783,8 +829,8 @@ export default function EstoquePage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Custo (R$)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={editCost}
                         onChange={(e) => setEditCost(e.target.value)}
                         placeholder="0,00"
@@ -794,8 +840,8 @@ export default function EstoquePage() {
 
                     <div className="space-y-1">
                       <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         value={editSell}
                         onChange={(e) => setEditSell(e.target.value)}
@@ -807,8 +853,8 @@ export default function EstoquePage() {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       value={editBarcode}
                       onChange={(e) => setEditBarcode(e.target.value)}
                       placeholder="Código de barras..."
@@ -824,16 +870,16 @@ export default function EstoquePage() {
                         { id: "planned", label: "Planejado" },
                         { id: "in_stock", label: "Em Estoque" },
                       ].map((statusOption) => (
-                        <button 
+                        <button
                           key={statusOption.id}
                           type="button"
                           onClick={() => setEditStatus(statusOption.id as StockStatus)}
                           className={`py-2 px-3 rounded text-[10px] font-mono uppercase border transition-all duration-300 font-semibold ${
-                            editStatus === statusOption.id 
-                              ? statusOption.id === "urgent" 
-                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30" 
-                                : statusOption.id === "planned" 
-                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                            editStatus === statusOption.id
+                              ? statusOption.id === "urgent"
+                                ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                                : statusOption.id === "planned"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                                 : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                               : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                           }`}
@@ -846,8 +892,8 @@ export default function EstoquePage() {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">URL da Imagem (Thumbnail)</label>
-                    <input 
-                      type="url" 
+                    <input
+                      type="url"
                       value={editImageUrl}
                       onChange={(e) => setEditImageUrl(e.target.value)}
                       placeholder="Cole uma URL personalizada (opcional)"
@@ -866,8 +912,8 @@ export default function EstoquePage() {
                         type="button"
                         onClick={() => setEditIsReturnable(!editIsReturnable)}
                         className={`px-3 py-1.5 rounded text-[10px] font-mono uppercase font-bold border transition-colors ${
-                          editIsReturnable 
-                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                          editIsReturnable
+                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                             : "bg-white/5 border-white/5 text-white/40"
                         }`}
                       >
@@ -878,7 +924,7 @@ export default function EstoquePage() {
                     {editIsReturnable && (
                       <div className="space-y-1 animate-fade-in">
                         <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor de Depósito do Casco (R$)</label>
-                        <input 
+                        <input
                           type="text"
                           value={editDepositFee}
                           onChange={(e) => setEditDepositFee(e.target.value)}
@@ -906,20 +952,20 @@ export default function EstoquePage() {
                         <div className="grid grid-cols-2 gap-3 text-xs">
                           <div className="space-y-1">
                             <label className="text-[9px] font-mono uppercase text-white/40 block">Custo Nota (R$)</label>
-                            <input 
-                              type="text" 
-                              value={calcCustoBruto} 
-                              onChange={(e) => setCalcCustoBruto(e.target.value)} 
+                            <input
+                              type="text"
+                              value={calcCustoBruto}
+                              onChange={(e) => setCalcCustoBruto(e.target.value)}
                               placeholder="0,00"
                               className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-mono uppercase text-white/40 block">Frete Rateado (R$)</label>
-                            <input 
-                              type="text" 
-                              value={calcFrete} 
-                              onChange={(e) => setCalcFrete(e.target.value)} 
+                            <input
+                              type="text"
+                              value={calcFrete}
+                              onChange={(e) => setCalcFrete(e.target.value)}
                               placeholder="0,00"
                               className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
                             />
@@ -929,20 +975,20 @@ export default function EstoquePage() {
                         <div className="grid grid-cols-2 gap-3 text-xs">
                           <div className="space-y-1">
                             <label className="text-[9px] font-mono uppercase text-white/40 block">ICMS-ST / IPI (%)</label>
-                            <input 
-                              type="text" 
-                              value={calcImpostos} 
-                              onChange={(e) => setCalcImpostos(e.target.value)} 
+                            <input
+                              type="text"
+                              value={calcImpostos}
+                              onChange={(e) => setCalcImpostos(e.target.value)}
                               placeholder="Ex: 10"
                               className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
                             />
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-mono uppercase text-white/40 block">Margem Líquida (%)</label>
-                            <input 
-                              type="text" 
-                              value={calcMargem} 
-                              onChange={(e) => setCalcMargem(e.target.value)} 
+                            <input
+                              type="text"
+                              value={calcMargem}
+                              onChange={(e) => setCalcMargem(e.target.value)}
                               placeholder="Ex: 35"
                               className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded font-mono text-white"
                             />
@@ -1006,7 +1052,7 @@ export default function EstoquePage() {
                                 <span className="font-semibold text-white/90 truncate block">{matchingItem?.name || "Produto Excluído"}</span>
                                 <span className="font-mono text-white/40 block">Dedução: {ing.quantity} (ex: {ing.quantity === 0.25 ? "1/4 garrafa" : `${ing.quantity} unid`})</span>
                               </div>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => handleRemoveIngredient(ing.product_id)}
                                 className="p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors"
@@ -1027,18 +1073,48 @@ export default function EstoquePage() {
                     <div className="bg-black/30 border border-white/5 p-3 rounded-xl space-y-3">
                       <span className="text-[9px] font-mono uppercase text-white/40 tracking-wider block">Vincular Novo Ingrediente</span>
                       <div className="grid grid-cols-2 gap-2">
-                        <select
-                          value={selectedIngredientId}
-                          onChange={(e) => setSelectedIngredientId(e.target.value)}
-                          className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                        >
-                          <option value="">Selecione...</option>
-                          {stock.filter(s => s.id !== editingProduct.id).map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={ingredientSearch}
+                            onFocus={() => setIsIngredientDropdownOpen(true)}
+                            onBlur={() => setTimeout(() => setIsIngredientDropdownOpen(false), 250)}
+                            onChange={(e) => {
+                              setIngredientSearch(e.target.value);
+                              setSelectedIngredientId(""); // Clear selection while typing
+                              setIsIngredientDropdownOpen(true);
+                            }}
+                            placeholder="Buscar ingrediente..."
+                            className="w-full bg-black border border-white/10 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-white/30 placeholder-white/20 uppercase"
+                          />
+                          {isIngredientDropdownOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#141416] border border-white/10 rounded-lg shadow-xl divide-y divide-white/5">
+                              {stock
+                                .filter(s => s.id !== editingProduct?.id && s.name.toLowerCase().includes(ingredientSearch.toLowerCase()))
+                                .slice(0, 15) // Limit to top 15 matches for usability
+                                .map(s => (
+                                  <button
+                                    key={s.id}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      setSelectedIngredientId(s.id);
+                                      setIngredientSearch(s.name);
+                                      setIsIngredientDropdownOpen(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/5 transition-colors uppercase font-mono"
+                                  >
+                                    {s.name}
+                                  </button>
+                                ))
+                              }
+                              {stock.filter(s => s.id !== editingProduct?.id && s.name.toLowerCase().includes(ingredientSearch.toLowerCase())).length === 0 && (
+                                <div className="px-3 py-2 text-xs text-white/40 font-mono">Nenhum produto encontrado</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                        <input 
+                        <input
                           type="text"
                           value={ingredientQty}
                           onChange={(e) => setIngredientQty(e.target.value)}
@@ -1080,9 +1156,9 @@ export default function EstoquePage() {
                                 <div className="flex items-center gap-1.5">
                                   <span className="font-bold text-white">Lote: {batch.lot_number || "S/N"}</span>
                                   <span className={`px-1.5 py-0.5 rounded text-[7px] border font-bold uppercase ${
-                                    isExpired 
-                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/25 animate-pulse" 
-                                      : isSoon 
+                                    isExpired
+                                      ? "bg-rose-500/10 text-rose-400 border-rose-500/25 animate-pulse"
+                                      : isSoon
                                       ? "bg-amber-500/10 text-amber-400 border-amber-500/25"
                                       : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                                   }`}>
@@ -1092,7 +1168,7 @@ export default function EstoquePage() {
                                 <span className="text-white/40 block">Vencimento: {new Date(batch.expiration_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
                                 <span className="text-white/40 block">Qtd Lote: {batch.quantity} un</span>
                               </div>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => {
                                   setEditBatches(prev => prev.filter((_, i) => i !== idx));
@@ -1116,14 +1192,14 @@ export default function EstoquePage() {
                     <div className="bg-black/30 border border-white/5 p-3 rounded-xl space-y-3">
                       <span className="text-[9px] font-mono uppercase text-white/40 tracking-wider block">Registrar Novo Lote</span>
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <input 
+                        <input
                           type="text"
                           value={newLotNumber}
                           onChange={(e) => setNewLotNumber(e.target.value)}
                           placeholder="Nº Lote"
                           className="bg-black border border-white/10 rounded px-2.5 py-1.5 text-white focus:outline-none placeholder-white/20"
                         />
-                        <input 
+                        <input
                           type="date"
                           value={newLotExpirationDate}
                           onChange={(e) => setNewLotExpirationDate(e.target.value)}
@@ -1132,7 +1208,7 @@ export default function EstoquePage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs items-center">
                         <span className="text-[10px] font-mono text-white/40 uppercase">Qtd do Lote:</span>
-                        <input 
+                        <input
                           type="number"
                           value={newLotQuantity}
                           onChange={(e) => setNewLotQuantity(parseInt(e.target.value) || 1)}
@@ -1205,7 +1281,7 @@ export default function EstoquePage() {
                     </div>
                   )}
 
-                  <button 
+                  <button
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >
@@ -1224,7 +1300,7 @@ export default function EstoquePage() {
           </div>
         )}
       </AnimatePresence>
- 
+
       {/* XML DANFE Preview Modal - Idea 4 */}
       <AnimatePresence>
         {isXmlModalOpen && (
@@ -1254,7 +1330,7 @@ export default function EstoquePage() {
                       </p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       setIsXmlModalOpen(false);
                       const inputElement = document.getElementById("xml-upload-input") as HTMLInputElement;
@@ -1289,7 +1365,7 @@ export default function EstoquePage() {
                       {xmlItems.map((item, idx) => {
                         const isMatched = !!item.matches_product_id;
                         const matchingItem = stock.find(s => s.id === item.matches_product_id);
-                        
+
                         return (
                           <tr key={idx} className="hover:bg-white/[0.01] transition-colors">
                             <td className="py-3 px-3 max-w-[240px]">
@@ -1328,7 +1404,7 @@ export default function EstoquePage() {
                       {formatCurrency(xmlTotalValue)}
                     </span>
                   </div>
-                  
+
                   <div className="text-right">
                     <span className="text-[9px] font-mono uppercase text-white/40 block">Total de Itens</span>
                     <span className="text-xl font-headline font-black text-white mt-0.5 block">
@@ -1361,7 +1437,7 @@ export default function EstoquePage() {
           </div>
         )}
       </AnimatePresence>
- 
+
     </div>
   );
 }

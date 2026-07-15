@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Plus, 
-  Trash2, 
-  Check, 
-  Filter, 
-  User, 
-  PlusCircle, 
+import {
+  Plus,
+  Trash2,
+  Check,
+  Filter,
+  User,
+  PlusCircle,
   AlertCircle,
   X,
   Paperclip,
@@ -20,11 +20,13 @@ import Image from "next/image";
 type CostFilter = "all" | "gu" | "melhor" | "pending";
 
 export default function CustosPage() {
-  const { 
-    costs, 
-    addCost, 
-    toggleCostPaid, 
-    deleteCost
+  const {
+    costs,
+    addCost,
+    toggleCostPaid,
+    deleteCost,
+    stock,
+    adjustStockQty
   } = useAdega();
 
   // Filters
@@ -42,20 +44,32 @@ export default function CustosPage() {
   const [receiptFileName, setReceiptFileName] = useState<string>("");
   const [selectedReceipt, setSelectedReceipt] = useState<{ title: string; url: string } | null>(null);
 
+  // Product linking states
+  const [linkedProductId, setLinkedProductId] = useState("");
+  const [linkedQty, setLinkedQty] = useState(1);
+  const [productSearch, setProductSearch] = useState("");
+  const [isProductDropdownOpen, setIsProductDropdownOpen] = useState(false);
+  const [pendingProdId, setPendingProdId] = useState<string | null>(null);
+
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    
+
     // Auto-fill from URL parameters (replenishment triggers)
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const autoDesc = params.get("autoDesc");
       const autoVal = params.get("autoVal");
+      const autoProdId = params.get("autoProdId");
       if (autoDesc) {
         setCostDesc(autoDesc);
         if (autoVal && autoVal !== "0" && autoVal !== "undefined") {
           setCostVal(autoVal);
+        }
+        if (autoProdId) {
+          setLinkedProductId(autoProdId);
+          setPendingProdId(autoProdId);
         }
         setIsAddingCost(true);
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -64,6 +78,16 @@ export default function CustosPage() {
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
+
+  React.useEffect(() => {
+    if (pendingProdId && stock.length > 0) {
+      const matched = stock.find(s => s.id === pendingProdId);
+      if (matched) {
+        setProductSearch(matched.name);
+        setPendingProdId(null);
+      }
+    }
+  }, [pendingProdId, stock]);
 
   // Calculations
   const totalGeral = costs.reduce((sum, item) => sum + item.amount, 0);
@@ -91,6 +115,10 @@ export default function CustosPage() {
 
     const success = await addCost(costDesc, costVal, costBuyer, costPaid, costInstallments, costReceipt);
     if (success) {
+      if (linkedProductId && linkedQty > 0) {
+        await adjustStockQty(linkedProductId, linkedQty);
+      }
+
       setCostDesc("");
       setCostVal("");
       setCostBuyer("gu");
@@ -98,6 +126,9 @@ export default function CustosPage() {
       setCostInstallments("1");
       setCostReceipt("");
       setReceiptFileName("");
+      setLinkedProductId("");
+      setLinkedQty(1);
+      setProductSearch("");
       setIsAddingCost(false);
     }
   };
@@ -127,7 +158,7 @@ export default function CustosPage() {
 
   return (
     <div className="space-y-8 py-4">
-      
+
       {/* Title Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/5">
         <div>
@@ -137,7 +168,7 @@ export default function CustosPage() {
           </h2>
         </div>
 
-        <button 
+        <button
           onClick={() => setIsAddingCost(true)}
           className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
         >
@@ -168,7 +199,7 @@ export default function CustosPage() {
 
       {/* Filter and View Panel */}
       <div className="bg-[#0b0b0d] border border-white/5 rounded-xl overflow-hidden">
-        
+
         {/* Table Controls */}
         <div className="px-6 py-4 bg-white/[0.01] border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -178,12 +209,12 @@ export default function CustosPage() {
 
           <div className="flex flex-wrap gap-2">
             {costFilters.map((f) => (
-              <button 
+              <button
                 key={f.id}
                 onClick={() => setCostFilter(f.id)}
                 className={`px-3 py-1.5 rounded text-xs font-mono tracking-wider transition-all duration-300 ${
-                  costFilter === f.id 
-                    ? "bg-white text-black font-semibold" 
+                  costFilter === f.id
+                    ? "bg-white text-black font-semibold"
                     : "bg-white/[0.02] border border-white/5 text-white/60 hover:text-white"
                 }`}
               >
@@ -236,8 +267,8 @@ export default function CustosPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-mono tracking-wider uppercase border ${
-                            c.buyer === "gu" 
-                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20" 
+                            c.buyer === "gu"
+                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
                               : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                           }`}>
                             <User className="w-2.5 h-2.5" />
@@ -248,11 +279,11 @@ export default function CustosPage() {
                         <td className="px-6 py-4 text-xs font-mono text-white/40">{c.date}</td>
                         <td className="px-6 py-4">
                           <div className="flex justify-center">
-                            <button 
+                            <button
                               onClick={() => toggleCostPaid(c.id)}
                               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono tracking-wider uppercase border transition-all duration-300 ${
-                                c.paid 
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-550/15" 
+                                c.paid
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-550/15"
                                   : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-550/15"
                               }`}
                             >
@@ -262,7 +293,7 @@ export default function CustosPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button 
+                          <button
                             onClick={() => deleteCost(c.id)}
                             className="p-1.5 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all duration-300"
                             title="Deletar custo"
@@ -300,8 +331,8 @@ export default function CustosPage() {
                     <div className="flex justify-between items-center pt-2 border-t border-white/5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase border ${
-                          c.buyer === "gu" 
-                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20" 
+                          c.buyer === "gu"
+                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
                             : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                         }`}>
                           <User className="w-2.5 h-2.5" />
@@ -319,11 +350,11 @@ export default function CustosPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => toggleCostPaid(c.id)}
                           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-mono tracking-wider uppercase border transition-all duration-300 ${
-                            c.paid 
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                            c.paid
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                           }`}
                         >
@@ -331,7 +362,7 @@ export default function CustosPage() {
                           {c.paid ? "Pago" : "Pendente"}
                         </button>
 
-                        <button 
+                        <button
                           onClick={() => deleteCost(c.id)}
                           className="p-2.5 rounded-md bg-white/[0.02] border border-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
                           title="Deletar custo"
@@ -357,7 +388,7 @@ export default function CustosPage() {
         {isAddingCost && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -365,14 +396,14 @@ export default function CustosPage() {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between ${
-                isMobile 
-                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10" 
+                isMobile
+                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10"
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
@@ -382,7 +413,7 @@ export default function CustosPage() {
                     <PlusCircle className="w-5 h-5 text-white/80" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">LANÇAR NOVO CUSTO</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsAddingCost(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -393,8 +424,8 @@ export default function CustosPage() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Descrição do Item</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={costDesc}
                       onChange={(e) => setCostDesc(e.target.value)}
@@ -403,10 +434,103 @@ export default function CustosPage() {
                     />
                   </div>
 
+                  {/* Linked Stock Product (Optional autocomplete) */}
+                  <div className="space-y-1 relative">
+                    <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Vincular a Produto de Estoque (Entrada automática)</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onFocus={() => setIsProductDropdownOpen(true)}
+                        onBlur={() => setTimeout(() => setIsProductDropdownOpen(false), 250)}
+                        onChange={(e) => {
+                          setProductSearch(e.target.value);
+                          setLinkedProductId(""); // Reset ID if typing
+                          setIsProductDropdownOpen(true);
+                        }}
+                        placeholder="Pesquisar produto no estoque..."
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white placeholder-white/20 text-sm uppercase font-mono"
+                      />
+                      {productSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductSearch("");
+                            setLinkedProductId("");
+                            setLinkedQty(1);
+                          }}
+                          className="absolute right-8 top-1/2 -translate-y-1/2 text-white/40 hover:text-white text-xs font-mono"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      {isProductDropdownOpen && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-[#141416] border border-white/10 rounded-lg shadow-xl divide-y divide-white/5">
+                          {stock
+                            .filter(s => s.name.toLowerCase().includes(productSearch.toLowerCase()))
+                            .slice(0, 15)
+                            .map(s => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onMouseDown={() => {
+                                  setLinkedProductId(s.id);
+                                  setProductSearch(s.name);
+                                  setIsProductDropdownOpen(false);
+
+                                  // Auto-fill description if empty
+                                  if (!costDesc.trim() || costDesc.startsWith("Reposição de") || costDesc.startsWith("REPOSIÇÃO DE")) {
+                                    setCostDesc(`REPOSIÇÃO DE ${s.name.toUpperCase()}`);
+                                  }
+                                  // Auto-fill total cost if empty or auto-calculatable
+                                  if (s.price_cost && (!costVal || costVal === "0" || costVal === "0,00" || costVal === "")) {
+                                    const totalCost = s.price_cost * linkedQty;
+                                    setCostVal(totalCost.toFixed(2).replace(".", ","));
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/5 transition-colors uppercase font-mono"
+                              >
+                                {s.name} (Custo Un: {formatCurrency(s.price_cost || 0)})
+                              </button>
+                            ))
+                          }
+                          {stock.filter(s => s.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                            <div className="px-3 py-2 text-xs text-white/40 font-mono">Nenhum produto encontrado</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantity bought if linked */}
+                  {linkedProductId && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Quantidade Adquirida</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={linkedQty}
+                        onChange={(e) => {
+                          const qty = parseInt(e.target.value) || 1;
+                          setLinkedQty(qty);
+
+                          // Auto recalculate value if product has price_cost
+                          const matched = stock.find(s => s.id === linkedProductId);
+                          if (matched && matched.price_cost) {
+                            const totalCost = matched.price_cost * qty;
+                            setCostVal(totalCost.toFixed(2).replace(".", ","));
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded focus:border-white/30 focus:outline-none text-white text-sm font-mono"
+                      />
+                      <span className="text-[9px] font-mono text-emerald-400 uppercase block">✓ Adicionará +{linkedQty} itens ao estoque deste produto.</span>
+                    </div>
+                  )}
+
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor (R$)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={costVal}
                       onChange={(e) => setCostVal(e.target.value)}
@@ -417,8 +541,8 @@ export default function CustosPage() {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider font-semibold block">Número de Parcelas</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min="1"
                       max="72"
                       value={costInstallments}
@@ -432,23 +556,23 @@ export default function CustosPage() {
                   <div className="space-y-2">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Quem Comprou / Pagou?</label>
                     <div className="grid grid-cols-2 gap-3">
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setCostBuyer("gu")}
                         className={`py-2 px-4 rounded text-xs font-mono uppercase border transition-all duration-300 ${
-                          costBuyer === "gu" 
-                            ? "bg-sky-500/10 text-sky-400 border-sky-500/30 font-bold" 
+                          costBuyer === "gu"
+                            ? "bg-sky-500/10 text-sky-400 border-sky-500/30 font-bold"
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
                         Oliveira
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setCostBuyer("melhor")}
                         className={`py-2 px-4 rounded text-xs font-mono uppercase border transition-all duration-300 ${
-                          costBuyer === "melhor" 
-                            ? "bg-purple-500/10 text-purple-400 border-purple-500/30 font-bold" 
+                          costBuyer === "melhor"
+                            ? "bg-purple-500/10 text-purple-400 border-purple-500/30 font-bold"
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
@@ -462,8 +586,8 @@ export default function CustosPage() {
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Comprovante (Imagem ou PDF)</label>
                     {!costReceipt ? (
                       <div className="relative border border-dashed border-white/10 hover:border-white/20 rounded px-3 py-4 bg-black/20 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*,application/pdf"
                           onChange={handleFileChange}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -496,7 +620,7 @@ export default function CustosPage() {
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">
-                    <input 
+                    <input
                       type="checkbox"
                       id="costPaidCheck"
                       checked={costPaid}
@@ -508,7 +632,7 @@ export default function CustosPage() {
                     </label>
                   </div>
 
-                  <button 
+                  <button
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >
@@ -533,7 +657,7 @@ export default function CustosPage() {
         {selectedReceipt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             {/* Backdrop click to close */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -541,7 +665,7 @@ export default function CustosPage() {
               className="absolute inset-0"
             />
             {/* Container */}
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -555,7 +679,7 @@ export default function CustosPage() {
                     Comprovante: {selectedReceipt.title}
                   </h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedReceipt(null)}
                   className="p-1 rounded text-white/40 hover:text-white"
                 >
@@ -578,9 +702,9 @@ export default function CustosPage() {
                     </a>
                     {/* Embedded preview for desktops */}
                     <div className="hidden sm:block w-full h-[50vh] border border-white/5 mt-4 rounded-lg overflow-hidden">
-                      <iframe 
-                        src={selectedReceipt.url} 
-                        className="w-full h-full bg-black/40" 
+                      <iframe
+                        src={selectedReceipt.url}
+                        className="w-full h-full bg-black/40"
                         title="Visualizador PDF"
                       />
                     </div>
@@ -602,14 +726,14 @@ export default function CustosPage() {
               <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
                 <a
                   href={selectedReceipt.url}
-                  download={selectedReceipt.url.startsWith("data:application/pdf") 
+                  download={selectedReceipt.url.startsWith("data:application/pdf")
                     ? `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.pdf`
                     : `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.jpg`}
                   className="px-4 py-2 bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-white font-mono text-[10px] tracking-wider rounded uppercase transition-colors"
                 >
                   Download Direto
                 </a>
-                <button 
+                <button
                   onClick={() => setSelectedReceipt(null)}
                   className="px-4 py-2 bg-white text-black font-semibold font-headline text-[10px] tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                 >

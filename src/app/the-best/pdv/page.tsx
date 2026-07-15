@@ -3,23 +3,31 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useAdega, StockItem, HeldCart } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Search, 
-  Plus, 
-  Minus, 
-  Trash2, 
-  ShoppingBag, 
-  DollarSign, 
-  Check, 
-  X, 
-  AlertCircle, 
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingBag,
+  DollarSign,
+  Check,
+  X,
+  AlertCircle,
   Settings,
   ArrowRight,
   Lock,
   LockOpen,
   FolderMinus,
   MessageCircle,
-  Percent
+  Percent,
+  CornerDownLeft,
+  Keyboard,
+  UserCheck,
+  Barcode,
+  Layers3,
+  Calculator,
+  Banknote,
+  Activity
 } from "lucide-react";
 import Image from "next/image";
 import { buildProductArtDataUrl, getProductDisplayImage } from "@/lib/theBestProductImages";
@@ -34,6 +42,10 @@ type PaymentMethod =
   | "consumo_marques"
   | "cortesia";
 
+type DirectPaymentMethod = Exclude<PaymentMethod, "dinheiro" | "fiado">;
+
+type ProductQuickFilter = "todos" | "vendaveis" | "recentes" | "sem_preco" | "cervejas" | "destilados" | "outros";
+
 interface CartItem {
   id: string;
   name: string;
@@ -45,10 +57,71 @@ interface CartItem {
   returned_bottles_count?: number;
 }
 
+const normalizeProductText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const getProductAvailableQuantity = (product: StockItem, stock: StockItem[]) => {
+  if (!product.recipe?.length) return Math.max(0, product.quantity);
+
+  const ingredientLimits = product.recipe.map((ingredient) => {
+    const stockItem = stock.find((item) => item.id === ingredient.product_id);
+    if (!stockItem || ingredient.quantity <= 0) return 0;
+    return Math.floor(stockItem.quantity / ingredient.quantity);
+  });
+
+  return ingredientLimits.length > 0 ? Math.max(0, Math.min(...ingredientLimits)) : 0;
+};
+
+const isSellableProduct = (product: StockItem, stock: StockItem[]) =>
+  getProductAvailableQuantity(product, stock) > 0;
+
+const hasProductPrice = (product: StockItem) => !!product.price_sell && product.price_sell > 0;
+
+const getPdvProductCategory = (name: string): Exclude<ProductQuickFilter, "todos" | "vendaveis" | "recentes" | "sem_preco"> => {
+  const lower = normalizeProductText(name);
+
+  if (
+    lower.includes("cerveja") ||
+    lower.includes("heineken") ||
+    lower.includes("budweiser") ||
+    lower.includes("amstel") ||
+    lower.includes("coron") ||
+    lower.includes("skol") ||
+    lower.includes("brahma") ||
+    lower.includes("original") ||
+    lower.includes("stella") ||
+    lower.includes("chopp")
+  ) {
+    return "cervejas";
+  }
+
+  if (
+    lower.includes("absolut") ||
+    lower.includes("smirnoff") ||
+    lower.includes("whisky") ||
+    lower.includes("gin") ||
+    lower.includes("vodka") ||
+    lower.includes("jack daniel") ||
+    lower.includes("corote") ||
+    lower.includes("cachaca") ||
+    lower.includes("campari") ||
+    lower.includes("rum") ||
+    lower.includes("tequila") ||
+    lower.includes("licor")
+  ) {
+    return "destilados";
+  }
+
+  return "outros";
+};
+
 export default function PdvPage() {
-  const { 
-    stock, 
-    registerSale, 
+  const {
+    stock,
+    registerSale,
     registerDebt,
     updateStockPrices,
     isPosActive,
@@ -57,14 +130,18 @@ export default function PdvPage() {
     setActiveCart,
     heldCarts,
     setHeldCarts,
-    debts
+    debts,
+    currentUser
   } = useAdega();
-  
+
   // UI states
   const [searchTerm, setSearchTerm] = useState("");
+  const [productFilter, setProductFilter] = useState<ProductQuickFilter>("vendaveis");
+  const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
-  
+
   // Custom discount state
   const [discountVal, setDiscountVal] = useState("");
 
@@ -92,19 +169,108 @@ export default function PdvPage() {
 
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("thebest_pdv_recent_products");
+      if (saved) setRecentProductIds(JSON.parse(saved));
+    } catch {
+      setRecentProductIds([]);
+    }
+  }, []);
+
+  const rememberRecentProduct = useCallback((id: string) => {
+    setRecentProductIds((previous) => {
+      const next = [id, ...previous.filter((productId) => productId !== id)].slice(0, 12);
+      window.localStorage.setItem("thebest_pdv_recent_products", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const productStats = useMemo(() => {
+    const stats: Record<ProductQuickFilter, number> = {
+      todos: stock.length,
+      vendaveis: 0,
+      recentes: 0,
+      sem_preco: 0,
+      cervejas: 0,
+      destilados: 0,
+      outros: 0,
+    };
+
+    stock.forEach((item) => {
+      const sellable = isSellableProduct(item, stock);
+      if (sellable) stats.vendaveis += 1;
+      if (sellable && recentProductIds.includes(item.id)) stats.recentes += 1;
+      if (sellable && !hasProductPrice(item)) stats.sem_preco += 1;
+      stats[getPdvProductCategory(item.name)] += 1;
+    });
+
+    return stats;
+  }, [stock, recentProductIds]);
+
   // Filter & Search stock
   const filteredProducts = useMemo(() => {
-    return stock.filter(item => 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (item.barcode && item.barcode.includes(searchTerm))
-    );
-  }, [stock, searchTerm]);
+    const normalizedSearch = normalizeProductText(searchTerm);
+
+    return stock.filter((item) => {
+      const matchesSearch = normalizeProductText(item.name).includes(normalizedSearch) ||
+        (item.barcode && item.barcode.includes(searchTerm));
+
+      const matchesFilter =
+        productFilter === "todos" ||
+        (productFilter === "vendaveis" && isSellableProduct(item, stock)) ||
+        (productFilter === "recentes" && recentProductIds.includes(item.id) && isSellableProduct(item, stock)) ||
+        (productFilter === "sem_preco" && isSellableProduct(item, stock) && !hasProductPrice(item)) ||
+        getPdvProductCategory(item.name) === productFilter;
+
+      return matchesSearch && matchesFilter;
+    }).sort((a, b) => {
+      if (productFilter === "recentes") {
+        return recentProductIds.indexOf(a.id) - recentProductIds.indexOf(b.id);
+      }
+
+      const sellableDelta = Number(isSellableProduct(b, stock)) - Number(isSellableProduct(a, stock));
+      if (sellableDelta !== 0) return sellableDelta;
+
+      const priceDelta = Number(hasProductPrice(b)) - Number(hasProductPrice(a));
+      if (priceDelta !== 0) return priceDelta;
+
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+  }, [stock, searchTerm, productFilter, recentProductIds]);
+
+  const registerProducts = useMemo(() => {
+    const recentItems = recentProductIds
+      .map((id) => stock.find((item) => item.id === id))
+      .filter((item): item is StockItem => !!item && isSellableProduct(item, stock))
+      .slice(0, 8);
+
+    if (recentItems.length > 0) return recentItems;
+
+    return stock
+      .filter((item) => isSellableProduct(item, stock) && hasProductPrice(item))
+      .sort((a, b) => (b.price_sell || 0) - (a.price_sell || 0))
+      .slice(0, 8);
+  }, [stock, recentProductIds]);
+
+  const stockAlertCount = useMemo(() => {
+    return stock.filter((item) => !item.recipe?.length && item.quantity > 0 && item.quantity <= 3).length;
+  }, [stock]);
+
+  const noPriceCount = productStats.sem_preco;
+
+  const cartProfitAmount = useMemo(() => {
+    return activeCart.reduce((sum, item) => {
+      const unitProfit = (item.price_sell || 0) - (item.price_cost || 0);
+      return sum + unitProfit * item.quantity;
+    }, 0);
+  }, [activeCart]);
 
   // Totals calculations
   const subtotalAmount = useMemo(() => {
     return activeCart.reduce((sum, item) => {
       const baseTotal = item.price_sell * item.quantity;
-      const depositCharge = item.is_returnable 
+      const depositCharge = item.is_returnable
         ? Math.max(0, item.quantity - (item.returned_bottles_count || 0)) * (item.deposit_fee || 0)
         : 0;
       return sum + baseTotal + depositCharge;
@@ -120,10 +286,22 @@ export default function PdvPage() {
     return Math.max(0, subtotalAmount - parsedDiscount);
   }, [subtotalAmount, parsedDiscount]);
 
+  const saleStatusLabel = activeCart.length === 0
+    ? "Aguardando produto"
+    : parsedDiscount > 0
+      ? "Venda com desconto"
+      : "Pronta para pagamento";
+
+  const saleStatusClass = activeCart.length === 0
+    ? "text-white/45"
+    : parsedDiscount > 0
+      ? "text-amber-300"
+      : "text-emerald-300";
+
   const activeCustomerDebt = useMemo(() => {
     if (paymentMethod !== "fiado" || !debtCustomerName.trim()) return 0;
-    const matchingDebts = debts.filter(d => 
-      (d.status === "pending" || !d.status) && 
+    const matchingDebts = debts.filter(d =>
+      (d.status === "pending" || !d.status) &&
       d.customer_name.toLowerCase().trim() === debtCustomerName.toLowerCase().trim()
     );
     return matchingDebts.reduce((sum, d) => sum + d.amount, 0);
@@ -140,21 +318,44 @@ export default function PdvPage() {
   }, [receivedAmount, totalAmount]);
 
   // Quick cash buttons
-  const cashQuickNotes = [20, 50, 100, 200];
+  const cashQuickNotes = useMemo(() => {
+    const roundedToTen = Math.ceil(totalAmount / 10) * 10;
+    const roundedToFifty = Math.ceil(totalAmount / 50) * 50;
+    return Array.from(new Set([20, 50, 100, 200, roundedToTen, roundedToFifty]))
+      .filter((value) => value > 0 && value >= totalAmount)
+      .sort((a, b) => a - b)
+      .slice(0, 5);
+  }, [totalAmount]);
+  const quickDiscounts = [5, 10, 20];
+  const directPaymentOptions = [
+    { id: "pix", label: "Pix" },
+    { id: "debito", label: "Débito" },
+    { id: "credito", label: "Crédito" },
+  ] satisfies { id: DirectPaymentMethod; label: string }[];
 
-  const isSellableProduct = (product: StockItem) => product.quantity > 0 || !!product.recipe?.length;
+  const productFilterOptions = [
+    { id: "vendaveis", label: "Vendáveis", count: productStats.vendaveis },
+    { id: "recentes", label: "Recentes", count: productStats.recentes },
+    { id: "sem_preco", label: "Precificar", count: productStats.sem_preco },
+    { id: "cervejas", label: "Cervejas", count: productStats.cervejas },
+    { id: "destilados", label: "Destilados", count: productStats.destilados },
+    { id: "outros", label: "Outros", count: productStats.outros },
+    { id: "todos", label: "Todos", count: productStats.todos },
+  ] satisfies { id: ProductQuickFilter; label: string; count: number }[];
 
   // Cart actions
   const addToCart = (product: StockItem) => {
-    const hasRecipe = !!product.recipe?.length;
     const existing = activeCart.find(item => item.id === product.id);
+    const availableQuantity = getProductAvailableQuantity(product, stock);
 
-    if (!isSellableProduct(product)) {
-      alert("Produto sem estoque. Reponha no estoque antes de vender.");
+    if (availableQuantity <= 0) {
+      alert(product.recipe?.length
+        ? "Combo indisponível: reponha os ingredientes da receita antes de vender."
+        : "Produto sem estoque. Reponha no estoque antes de vender.");
       return;
     }
 
-    if (!hasRecipe && existing && existing.quantity >= product.quantity) {
+    if (existing && existing.quantity >= availableQuantity) {
       alert("Quantidade indisponível no estoque para este produto.");
       return;
     }
@@ -178,9 +379,9 @@ export default function PdvPage() {
 
     setActiveCart((prev) => {
       if (existing) {
-        return prev.map(item => 
-          item.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 } 
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
@@ -198,10 +399,41 @@ export default function PdvPage() {
         }
       ];
     });
+
+    rememberRecentProduct(product.id);
+    setMobileTab("cart");
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+
+    const term = searchTerm.trim();
+    const exactBarcode = term
+      ? stock.find((item) => item.barcode && item.barcode === term)
+      : undefined;
+    const productToAdd = exactBarcode || (filteredProducts.length === 1 ? filteredProducts[0] : undefined);
+
+    if (!productToAdd) return;
+
+    e.preventDefault();
+    addToCart(productToAdd);
+    setSearchTerm("");
+    searchInputRef.current?.focus();
   };
 
   const adjustCartQty = (id: string, amount: number) => {
-    setActiveCart((prev) => 
+    const stockItem = stock.find((item) => item.id === id);
+
+    if (amount > 0 && stockItem) {
+      const cartItem = activeCart.find((item) => item.id === id);
+      const availableQuantity = getProductAvailableQuantity(stockItem, stock);
+      if (cartItem && cartItem.quantity >= availableQuantity) {
+        alert("Quantidade indisponível no estoque para este produto.");
+        return;
+      }
+    }
+
+    setActiveCart((prev) =>
       prev.map(item => {
         if (item.id === id) {
           const newQty = item.quantity + amount;
@@ -274,13 +506,12 @@ export default function PdvPage() {
     }
   };
 
-  // Checkout submission
-  const handleCheckoutSubmit = useCallback(async () => {
-    if (activeCart.length === 0) return;
+  const completeCheckout = useCallback(async (method: PaymentMethod) => {
+    if (activeCart.length === 0 || isProcessingCheckout) return;
 
     const unavailableItem = activeCart.find((cartItem) => {
       const stockItem = stock.find((item) => item.id === cartItem.id);
-      return stockItem && !stockItem.recipe?.length && cartItem.quantity > stockItem.quantity;
+      return stockItem && cartItem.quantity > getProductAvailableQuantity(stockItem, stock);
     });
 
     if (unavailableItem) {
@@ -288,38 +519,44 @@ export default function PdvPage() {
       return;
     }
 
-    let success = false;
+    setIsProcessingCheckout(true);
 
-    if (paymentMethod === "fiado") {
-      success = await registerDebt(
-        debtCustomerName || "Cliente Sem Nome",
-        activeCart,
-        parsedDiscount
-      );
-    } else {
-      success = await registerSale(
-        activeCart,
-        paymentMethod,
-        parsedDiscount
-      );
-    }
+    try {
+      let success = false;
 
-    if (success) {
-      setSuccessSaleTotal(paymentMethod.startsWith("consumo") || paymentMethod === "cortesia" ? 0 : totalAmount);
-      setSuccessSaleChange(paymentMethod === "dinheiro" ? changeAmount : 0);
-      setSessionRevenue(prev => prev + (paymentMethod.startsWith("consumo") || paymentMethod === "cortesia" ? 0 : totalAmount));
-      setActiveCart([]);
-      setIsCheckoutOpen(false);
-      setReceivedAmount("");
-      setDiscountVal("");
-      setDebtCustomerName("");
-      setIsSuccessOpen(true);
+      if (method === "fiado") {
+        success = await registerDebt(
+          debtCustomerName || "Cliente Sem Nome",
+          activeCart,
+          parsedDiscount
+        );
+      } else {
+        success = await registerSale(
+          activeCart,
+          method,
+          parsedDiscount
+        );
+      }
+
+      if (success) {
+        setSuccessSaleTotal(method.startsWith("consumo") || method === "cortesia" ? 0 : totalAmount);
+        setSuccessSaleChange(method === "dinheiro" ? changeAmount : 0);
+        setSessionRevenue(prev => prev + (method.startsWith("consumo") || method === "cortesia" ? 0 : totalAmount));
+        setActiveCart([]);
+        setIsCheckoutOpen(false);
+        setReceivedAmount("");
+        setDiscountVal("");
+        setDebtCustomerName("");
+        setIsSuccessOpen(true);
+      }
+    } finally {
+      setIsProcessingCheckout(false);
     }
   }, [
     activeCart,
     changeAmount,
     debtCustomerName,
-    paymentMethod,
+    isProcessingCheckout,
     parsedDiscount,
     registerDebt,
     registerSale,
@@ -327,6 +564,15 @@ export default function PdvPage() {
     stock,
     totalAmount,
   ]);
+
+  const handleCheckoutSubmit = useCallback(async () => {
+    await completeCheckout(paymentMethod);
+  }, [completeCheckout, paymentMethod]);
+
+  const handleDirectPayment = useCallback(async (method: DirectPaymentMethod) => {
+    setPaymentMethod(method);
+    await completeCheckout(method);
+  }, [completeCheckout]);
 
   // Keyboard shortcut listener - Idea 5
   useEffect(() => {
@@ -380,7 +626,7 @@ export default function PdvPage() {
 
         if (e.key === "Enter") {
           // If in money method and change calculation is ready or other methods
-          const isButtonBlocked = 
+          const isButtonBlocked =
             (paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)) ||
             (paymentMethod === "fiado" && (!debtCustomerName.trim() || activeCustomerDebt >= 150));
 
@@ -417,8 +663,8 @@ export default function PdvPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] relative p-6">
         <div className="absolute inset-0 bg-radial-gradient from-rose-500/[0.015] to-transparent pointer-events-none rounded-full blur-3xl animate-pulse" />
-        
-        <motion.div 
+
+        <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
@@ -450,77 +696,171 @@ export default function PdvPage() {
   }
 
   return (
-    <div className="space-y-6 py-2 flex flex-col flex-1 relative min-h-[calc(100vh-140px)] select-none">
-      
-      {/* Title Header with neon green active state */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/5">
-        <div>
-          <span className="text-xs font-mono uppercase text-emerald-400 tracking-[0.2em] font-semibold flex items-center gap-1.5 animate-pulse">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-            Caixa Operando Online
-          </span>
-          <h2 className="font-headline text-2xl font-black tracking-widest text-white mt-1 uppercase">
-            FRENTE DE CAIXA
-          </h2>
-        </div>
+    <div className="flex flex-col gap-4 py-2 flex-1 relative min-h-[calc(100vh-140px)] select-none">
 
-        {/* Closing registers button & Mobile Toggles */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {
-              if (window.confirm("Deseja fechar o caixa e ver o resumo de faturamento da sessão?")) {
-                setIsClosingSession(true);
-              }
-            }}
-            className="px-4 py-2 border border-rose-500/20 bg-rose-950/10 text-rose-400 font-headline font-bold text-[10px] tracking-wider rounded uppercase hover:bg-rose-550/20 hover:text-rose-300 transition-colors"
-          >
-            Fechar Caixa
-          </button>
+      <header className="rounded-xl border border-white/8 bg-[#09090b] overflow-hidden">
+        <div className="flex flex-col gap-4 p-4 lg:p-5">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-11 w-11 rounded-lg border border-emerald-500/20 bg-emerald-500/10 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-emerald-300" />
+              </div>
+              <div>
+                <span className="text-[10px] font-mono uppercase text-emerald-400 tracking-[0.22em] font-semibold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  Caixa operando
+                </span>
+                <h2 className="font-headline text-xl lg:text-2xl font-black tracking-widest text-white mt-1 uppercase">
+                  Terminal de venda
+                </h2>
+              </div>
+            </div>
 
-          {/* Mobile Tab Switcher */}
-          <div className="lg:hidden flex bg-[#0c0c0e] border border-white/5 p-1 rounded-lg">
-            <button 
-              onClick={() => setMobileTab("products")}
-              className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all ${
-                mobileTab === "products" 
-                  ? "bg-white text-black font-semibold animate-pulse" 
-                  : "text-white/50"
-              }`}
-            >
-              Produtos
-            </button>
-            <button 
-              onClick={() => setMobileTab("cart")}
-              className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                mobileTab === "cart" 
-                  ? "bg-white text-black font-semibold animate-pulse" 
-                  : "text-white/50"
-              }`}
-            >
-              Carrinho ({totalItemsCount})
-            </button>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 xl:min-w-[620px]">
+              <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">Operador</span>
+                <strong className="mt-1 flex items-center gap-1.5 text-xs text-white">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  {currentUser || "Caixa"}
+                </strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">Venda</span>
+                <strong className={`mt-1 block text-xs ${saleStatusClass}`}>{saleStatusLabel}</strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">Ticket atual</span>
+                <strong className="mt-1 block text-xs text-white">{formatCurrency(totalAmount)}</strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">Atenções</span>
+                <strong className="mt-1 block text-xs text-amber-300">{stockAlertCount + noPriceCount}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-t border-white/5 pt-3">
+            <div className="grid grid-cols-3 gap-2 lg:w-auto">
+              <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-white/45">
+                <Keyboard className="w-3.5 h-3.5 text-emerald-400" />
+                F2 busca
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-white/45">
+                <CornerDownLeft className="w-3.5 h-3.5 text-emerald-400" />
+                Enter adiciona
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-white/45">
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
+                F8 finaliza
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (window.confirm("Deseja fechar o caixa e ver o resumo de faturamento da sessão?")) {
+                    setIsClosingSession(true);
+                  }
+                }}
+                className="px-4 py-2 border border-rose-500/20 bg-rose-950/10 text-rose-400 font-headline font-bold text-[10px] tracking-wider rounded uppercase hover:bg-rose-500/10 hover:text-rose-300 transition-colors"
+              >
+                Fechar Caixa
+              </button>
+
+              <div className="lg:hidden flex bg-[#0c0c0e] border border-white/5 p-1 rounded-lg">
+                <button
+                  onClick={() => setMobileTab("products")}
+                  className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all ${
+                    mobileTab === "products"
+                      ? "bg-white text-black font-semibold"
+                      : "text-white/50"
+                  }`}
+                >
+                  Produtos
+                </button>
+                <button
+                  onClick={() => setMobileTab("cart")}
+                  className={`px-4 py-2 rounded text-xs font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                    mobileTab === "cart"
+                      ? "bg-white text-black font-semibold"
+                      : "text-white/50"
+                  }`}
+                >
+                  Carrinho ({totalItemsCount})
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Side-by-side Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 flex-1 items-start">
-        
-        {/* Left Side: Product Selector (Visible on Desktop OR Mobile if products tab active) */}
-        <div className={`lg:col-span-3 space-y-6 ${mobileTab === "products" ? "block" : "hidden lg:block"}`}>
+      <div className="grid grid-cols-1 lg:grid-cols-5 xl:grid-cols-12 gap-4 flex-1 items-start">
+
+        <aside className="hidden xl:flex xl:col-span-2 flex-col gap-4 sticky top-24">
+          <section className="rounded-xl border border-white/5 bg-[#0b0b0d] p-3">
+            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+              <Layers3 className="w-4 h-4 text-white/40" />
+              <h3 className="text-[10px] font-mono uppercase tracking-wider text-white/45">Navegação do caixa</h3>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              {productFilterOptions.map((filter) => {
+                const active = productFilter === filter.id;
+
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setProductFilter(filter.id)}
+                    className={`w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left text-[10px] font-mono uppercase tracking-wider transition-colors ${
+                      active
+                        ? "border-white bg-white text-black font-bold"
+                        : "border-white/5 bg-white/[0.015] text-white/45 hover:text-white hover:bg-white/[0.035]"
+                    }`}
+                  >
+                    <span>{filter.label}</span>
+                    <span>{filter.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-white/5 bg-[#0b0b0d] p-3 space-y-3">
+            <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+              <Calculator className="w-4 h-4 text-white/40" />
+              <h3 className="text-[10px] font-mono uppercase tracking-wider text-white/45">Controle</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-white/5 bg-white/[0.015] p-3">
+                <span className="text-[9px] font-mono uppercase text-white/35">Itens</span>
+                <strong className="block mt-1 text-lg font-mono text-white">{totalItemsCount}</strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.015] p-3">
+                <span className="text-[9px] font-mono uppercase text-white/35">Margem</span>
+                <strong className="block mt-1 text-sm font-mono text-emerald-300">{formatCurrency(cartProfitAmount)}</strong>
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-500/10 bg-amber-500/5 p-3 text-[10px] font-mono uppercase leading-relaxed text-amber-200/80">
+              {noPriceCount} sem preço • {stockAlertCount} com estoque baixo
+            </div>
+          </section>
+        </aside>
+
+        <div className={`lg:col-span-3 xl:col-span-6 space-y-4 rounded-xl border border-white/5 bg-[#080809] p-4 ${mobileTab === "products" ? "block" : "hidden lg:block"}`}>
           {/* Search bar */}
           <div className="relative">
             <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-white/30" />
-            <input 
+            <input
               ref={searchInputRef}
-              type="text" 
+              type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por bebida, código de barras... [Atalho: F2]"
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar, bipar código ou apertar Enter no único resultado [F2]"
               className="w-full pl-10 pr-4 py-3 bg-[#0b0b0d] border border-white/5 rounded-xl focus:border-white/20 focus:outline-none text-white text-sm placeholder-white/30 transition-all font-mono"
             />
             {searchTerm && (
-              <button 
+              <button
                 onClick={() => setSearchTerm("")}
                 className="absolute right-3.5 top-3.5 text-white/30 hover:text-white"
               >
@@ -536,7 +876,8 @@ export default function PdvPage() {
                 </div>
                 <div className="divide-y divide-white/5">
                   {filteredProducts.map((product) => {
-                    const isBlockedOutOfStock = !isSellableProduct(product);
+                    const isBlockedOutOfStock = !isSellableProduct(product, stock);
+                    const availableQuantity = getProductAvailableQuantity(product, stock);
 
                     return (
                       <button
@@ -570,7 +911,9 @@ export default function PdvPage() {
                           <div className="space-y-0.5 min-w-0">
                             <span className="text-xs font-semibold text-white truncate block">{product.name}</span>
                             <span className="text-[10px] font-mono text-white/40 block">
-                              {isBlockedOutOfStock ? "Sem estoque" : `Estoque: ${product.quantity}`}
+                              {isBlockedOutOfStock
+                                ? product.recipe?.length ? "Ingredientes insuficientes" : "Sem estoque"
+                                : product.recipe?.length ? `Rende: ${availableQuantity}` : `Estoque: ${availableQuantity}`}
                             </span>
                           </div>
                         </div>
@@ -585,12 +928,108 @@ export default function PdvPage() {
             )}
           </div>
 
+          <div className="space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Barcode className="w-4 h-4 text-white/35" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-white/45">
+                  Produtos e leitura de código
+                </span>
+              </div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-white/30">
+                {filteredProducts.length} na tela
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              {productFilterOptions.map((filter) => {
+                const active = productFilter === filter.id;
+
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={() => setProductFilter(filter.id)}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-[9px] font-mono uppercase tracking-wider transition-all flex-shrink-0 ${
+                      active
+                        ? "border-white bg-white text-black font-bold"
+                        : "border-white/5 bg-white/[0.02] text-white/50 hover:text-white"
+                    }`}
+                  >
+                    <span>{filter.label}</span>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[8px] leading-none ${
+                      active ? "bg-black/10 text-black" : "bg-white/5 text-white/35"
+                    }`}>
+                      {filter.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/5 bg-white/[0.015] px-3 py-2">
+              <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">
+                {filteredProducts.length} produtos na tela
+              </span>
+              {(searchTerm || productFilter !== "vendaveis") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setProductFilter("vendaveis");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="text-[9px] font-mono uppercase tracking-wider text-white/45 hover:text-white transition-colors"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+
+            {registerProducts.length > 0 && (
+              <div className="rounded-xl border border-white/5 bg-[#0b0b0d] p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">
+                    {productStats.recentes > 0 ? "Itens recentes do caixa" : "Itens prováveis para começar"}
+                  </span>
+                  {productStats.recentes > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setProductFilter("recentes")}
+                      className="text-[9px] font-mono uppercase tracking-wider text-emerald-400/70 hover:text-emerald-300"
+                    >
+                      Ver recentes
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {registerProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => addToCart(product)}
+                      className="min-h-[58px] rounded-lg border border-white/5 bg-white/[0.025] px-3 py-2 text-left hover:border-white/15 hover:bg-white/[0.04] transition-colors"
+                    >
+                      <span className="line-clamp-2 text-[11px] font-semibold leading-snug text-white/80">
+                        {product.name}
+                      </span>
+                      <span className="mt-1 block text-[10px] font-mono text-emerald-400">
+                        {product.price_sell ? formatCurrency(product.price_sell) : "Precificar"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Products Grid */}
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-2">
               {filteredProducts.map((product) => {
-                const isOutOfStock = product.quantity <= 0;
-                const isBlockedOutOfStock = !isSellableProduct(product);
+                const availableQuantity = getProductAvailableQuantity(product, stock);
+                const isOutOfStock = availableQuantity <= 0;
+                const isBlockedOutOfStock = !isSellableProduct(product, stock);
                 const hasNoPrice = !product.price_sell || product.price_sell <= 0;
 
                 return (
@@ -598,28 +1037,18 @@ export default function PdvPage() {
                     key={product.id}
                     onClick={() => addToCart(product)}
                     disabled={isBlockedOutOfStock}
-                    className={`flex flex-col text-left bg-[#0b0b0d] border border-white/5 p-4 rounded-xl relative overflow-hidden group transition-all duration-300 ${
+                    className={`grid grid-cols-[52px_1fr_auto] items-center gap-3 text-left bg-[#0b0b0d] border border-white/5 px-3 py-2.5 rounded-xl relative overflow-hidden group transition-all duration-300 ${
                       isBlockedOutOfStock
                         ? "cursor-not-allowed opacity-45"
                         : "hover:border-white/10 active:scale-[0.98]"
                     }`}
                   >
-                    <div className="flex justify-between items-start w-full gap-2 mb-4">
-                      <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
-                        isOutOfStock 
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
-                          : "bg-white/5 text-white/50 border-white/5"
-                      }`}>
-                        {isBlockedOutOfStock ? "Sem estoque" : isOutOfStock ? "Combo" : `Qtd: ${product.quantity}`}
-                      </span>
-                    </div>
-
-                    <div className="w-full aspect-square rounded-xl bg-black/40 border border-white/10 p-2 mb-3 overflow-hidden flex items-center justify-center group-hover:border-white/20 transition-colors">
+                    <div className="h-12 w-12 rounded-lg bg-black/40 border border-white/10 p-1.5 overflow-hidden flex items-center justify-center group-hover:border-white/20 transition-colors">
                       <Image
                         src={getProductDisplayImage(product)}
                         alt={product.name}
-                        width={160}
-                        height={160}
+                        width={52}
+                        height={52}
                         unoptimized
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
@@ -629,11 +1058,29 @@ export default function PdvPage() {
                       />
                     </div>
 
-                    <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors mb-2 min-h-[2.5rem]">
-                      {product.name}
-                    </h3>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors truncate">
+                        {product.name}
+                      </h3>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
+                          isOutOfStock
+                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            : "bg-white/5 text-white/50 border-white/5"
+                        }`}>
+                          {isBlockedOutOfStock
+                            ? product.recipe?.length ? "Sem ingredientes" : "Sem estoque"
+                            : product.recipe?.length ? `Rende: ${availableQuantity}` : `Qtd: ${availableQuantity}`}
+                        </span>
+                        {product.barcode && (
+                          <span className="text-[9px] font-mono text-white/25 truncate max-w-[150px]">
+                            {product.barcode}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                    <div className="mt-auto pt-2 border-t border-white/5 flex items-center justify-between w-full">
+                    <div className="flex min-w-[86px] justify-end">
                       {hasNoPrice ? (
                         <span className="text-[10px] font-mono text-emerald-400/80 uppercase font-semibold flex items-center gap-1">
                           <Settings className="w-3 h-3 animate-spin" /> Precificar
@@ -659,25 +1106,45 @@ export default function PdvPage() {
         </div>
 
         {/* Right Side: Active Cart (Visible on Desktop OR Mobile if cart tab active) */}
-        <div className={`lg:col-span-2 bg-[#0b0b0d] border border-white/5 rounded-xl p-5 flex flex-col justify-between min-h-[50vh] lg:min-h-[60vh] sticky top-28 ${
+        <div className={`lg:col-span-2 xl:col-span-4 bg-[#0b0b0d] border border-white/5 rounded-xl p-5 flex flex-col justify-between min-h-[50vh] lg:min-h-[calc(100vh-220px)] sticky top-24 shadow-[0_18px_60px_rgba(0,0,0,0.22)] ${
           mobileTab === "cart" ? "block" : "hidden lg:flex"
         }`}>
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-white/5 mb-4">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-white/50" />
-                <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase">Venda Atual</h3>
+                <div className="h-8 w-8 rounded-lg bg-white/[0.035] border border-white/5 flex items-center justify-center">
+                  <ShoppingBag className="w-4 h-4 text-white/60" />
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-sm tracking-wider text-white uppercase">Pedido atual</h3>
+                  <span className={`text-[10px] font-mono uppercase tracking-wider ${saleStatusClass}`}>
+                    {saleStatusLabel}
+                  </span>
+                </div>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {activeCart.length > 0 && (
-                  <button
-                    onClick={minimizeCurrentCart}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 text-[9px] font-mono uppercase text-white/60 hover:text-white border border-white/5"
-                    title="Minimizar carrinho"
-                  >
-                    <FolderMinus className="w-3 h-3" /> Minimizar
-                  </button>
+                  <>
+                    <button
+                      onClick={minimizeCurrentCart}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 text-[9px] font-mono uppercase text-white/60 hover:text-white border border-white/5"
+                      title="Minimizar carrinho"
+                    >
+                      <FolderMinus className="w-3 h-3" /> Suspender
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Deseja esvaziar o carrinho atual?")) {
+                          setActiveCart([]);
+                        }
+                      }}
+                      className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded bg-rose-500/5 text-[9px] font-mono uppercase text-rose-400/70 hover:text-rose-300 border border-rose-500/10"
+                      title="Esvaziar carrinho"
+                    >
+                      <Trash2 className="w-3 h-3" /> Limpar
+                    </button>
+                  </>
                 )}
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-white/5 text-white/60">
                   {totalItemsCount} Itens
@@ -685,11 +1152,26 @@ export default function PdvPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="rounded-lg border border-white/5 bg-white/[0.015] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase text-white/35">Subtotal</span>
+                <strong className="block mt-1 text-xs font-mono text-white/75">{formatCurrency(subtotalAmount)}</strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.015] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase text-white/35">Desc.</span>
+                <strong className="block mt-1 text-xs font-mono text-emerald-300">{formatCurrency(parsedDiscount)}</strong>
+              </div>
+              <div className="rounded-lg border border-white/5 bg-white/[0.015] px-3 py-2">
+                <span className="text-[9px] font-mono uppercase text-white/35">Lucro</span>
+                <strong className="block mt-1 text-xs font-mono text-emerald-300">{formatCurrency(cartProfitAmount)}</strong>
+              </div>
+            </div>
+
             {/* Cart Items List */}
             {activeCart.length > 0 ? (
               <div className="space-y-3 max-h-[30vh] lg:max-h-[40vh] overflow-y-auto pr-1">
                 {activeCart.map((item) => (
-                  <div 
+                  <div
                     key={item.id}
                     className="flex justify-between items-center gap-4 px-3 py-2.5 bg-white/[0.01] border border-white/5 rounded-lg group animate-fade-in"
                   >
@@ -705,16 +1187,16 @@ export default function PdvPage() {
                           </span>
                         )}
                       </div>
-                      
+
                       {item.is_returnable && (
                         <div className="flex items-center gap-1 mt-1 text-[9px] font-mono text-amber-400/80">
                           <span>Devolveu Casco:</span>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
-                              setActiveCart(prev => prev.map(c => 
-                                c.id === item.id 
-                                  ? { ...c, returned_bottles_count: Math.max(0, (c.returned_bottles_count || 0) - 1) } 
+                              setActiveCart(prev => prev.map(c =>
+                                c.id === item.id
+                                  ? { ...c, returned_bottles_count: Math.max(0, (c.returned_bottles_count || 0) - 1) }
                                   : c
                               ));
                             }}
@@ -724,12 +1206,12 @@ export default function PdvPage() {
                             -
                           </button>
                           <span className="font-bold text-white px-0.5">{item.returned_bottles_count || 0}</span>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
-                              setActiveCart(prev => prev.map(c => 
-                                c.id === item.id 
-                                  ? { ...c, returned_bottles_count: Math.min(c.quantity, (c.returned_bottles_count || 0) + 1) } 
+                              setActiveCart(prev => prev.map(c =>
+                                c.id === item.id
+                                  ? { ...c, returned_bottles_count: Math.min(c.quantity, (c.returned_bottles_count || 0) + 1) }
                                   : c
                               ));
                             }}
@@ -748,29 +1230,39 @@ export default function PdvPage() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 bg-black/40 border border-white/5 rounded-md px-1.5 py-1">
-                        <button 
-                          onClick={() => adjustCartQty(item.id, -1)}
-                          className="p-1 rounded text-white/40 hover:text-white transition-colors"
-                          title="Diminuir"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        
-                        <span className="font-mono text-xs font-bold text-white min-w-[16px] text-center">
-                          {item.quantity}
-                        </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1.5 bg-black/40 border border-white/5 rounded-md px-1.5 py-1">
+                          <button
+                            onClick={() => adjustCartQty(item.id, -1)}
+                            className="p-1 rounded text-white/40 hover:text-white transition-colors"
+                            title="Diminuir"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
 
-                        <button 
-                          onClick={() => adjustCartQty(item.id, 1)}
-                          className="p-1 rounded text-white/40 hover:text-white transition-colors"
-                          title="Aumentar"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
+                          <span className="font-mono text-xs font-bold text-white min-w-[16px] text-center">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            onClick={() => adjustCartQty(item.id, 1)}
+                            className="p-1 rounded text-white/40 hover:text-white transition-colors"
+                            title="Aumentar"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400/80">
+                          {formatCurrency(
+                            item.price_sell * item.quantity +
+                              (item.is_returnable
+                                ? Math.max(0, item.quantity - (item.returned_bottles_count || 0)) * (item.deposit_fee || 0)
+                                : 0)
+                          )}
+                        </span>
                       </div>
 
-                      <button 
+                      <button
                         onClick={() => removeFromCart(item.id)}
                         className="p-1.5 rounded-md hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
                         title="Deletar"
@@ -790,20 +1282,41 @@ export default function PdvPage() {
 
           {/* Cart Bottom Summary */}
           <div className="pt-4 border-t border-white/5 mt-6 space-y-4">
-            
+
             {/* Custom Discount input */}
             {activeCart.length > 0 && (
-              <div className="flex items-center justify-between gap-4 p-3 bg-white/[0.01] border border-white/5 rounded-xl">
-                <span className="text-[10px] font-mono uppercase text-white/40 tracking-wider flex items-center gap-1">
-                  <Percent className="w-3 h-3" /> Desconto (R$)
-                </span>
-                <input 
-                  type="text" 
-                  value={discountVal}
-                  onChange={(e) => setDiscountVal(e.target.value)}
-                  placeholder="0,00"
-                  className="w-20 px-2 py-1 text-xs text-right bg-black/40 border border-white/10 rounded focus:border-white/20 focus:outline-none text-white font-mono placeholder-white/20"
-                />
+              <div className="space-y-2 p-3 bg-white/[0.01] border border-white/5 rounded-xl">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[10px] font-mono uppercase text-white/40 tracking-wider flex items-center gap-1">
+                    <Percent className="w-3 h-3" /> Desconto (R$)
+                  </span>
+                  <input
+                    type="text"
+                    value={discountVal}
+                    onChange={(e) => setDiscountVal(e.target.value)}
+                    placeholder="0,00"
+                    className="w-20 px-2 py-1 text-xs text-right bg-black/40 border border-white/10 rounded focus:border-white/20 focus:outline-none text-white font-mono placeholder-white/20"
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {quickDiscounts.map((discount) => (
+                    <button
+                      key={discount}
+                      type="button"
+                      onClick={() => setDiscountVal(discount.toString())}
+                      className="rounded border border-white/5 bg-black/20 py-1 text-[9px] font-mono uppercase text-white/45 hover:text-white hover:bg-white/5"
+                    >
+                      -R$ {discount}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setDiscountVal("")}
+                    className="rounded border border-white/5 bg-black/20 py-1 text-[9px] font-mono uppercase text-white/45 hover:text-white hover:bg-white/5"
+                  >
+                    Limpar
+                  </button>
+                </div>
               </div>
             )}
 
@@ -827,11 +1340,38 @@ export default function PdvPage() {
             <button
               disabled={activeCart.length === 0}
               onClick={() => setIsCheckoutOpen(true)}
-              className="w-full py-3 bg-white hover:bg-white/90 disabled:opacity-30 disabled:hover:bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/5"
+              className="w-full py-3 bg-white hover:bg-white/90 disabled:opacity-30 disabled:hover:bg-white text-black font-headline font-bold text-xs tracking-widest rounded-lg uppercase transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/5"
             >
+              <Banknote className="w-4 h-4" />
               Finalizar Compra [F8]
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {activeCart.length > 0 && (
+              <div className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.035] p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-300/75">
+                    Pagamento rápido
+                  </span>
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-white/30">
+                    Sem abrir gaveta
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {directPaymentOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => handleDirectPayment(option.id)}
+                      disabled={isProcessingCheckout}
+                      className="rounded-lg border border-emerald-500/15 bg-emerald-500/10 px-2 py-2 text-[10px] font-mono uppercase tracking-wider text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40 disabled:hover:bg-emerald-500/10 transition-colors"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -873,7 +1413,7 @@ export default function PdvPage() {
         {isCheckoutOpen && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -894,7 +1434,7 @@ export default function PdvPage() {
                     <DollarSign className="w-5 h-5 text-emerald-400 animate-pulse" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">Checkout Venda</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsCheckoutOpen(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -927,8 +1467,8 @@ export default function PdvPage() {
                           key={method.id}
                           onClick={() => setPaymentMethod(method.id)}
                           className={`py-3 px-4 rounded-xl text-xs font-mono uppercase tracking-wider border transition-all duration-300 font-semibold ${
-                            paymentMethod === method.id 
-                              ? "bg-white text-black border-white shadow-lg" 
+                            paymentMethod === method.id
+                              ? "bg-white text-black border-white shadow-lg"
                               : "bg-[#0b0b0d] border-white/5 text-white/40 hover:text-white/70"
                           }`}
                         >
@@ -940,14 +1480,14 @@ export default function PdvPage() {
 
                   {/* Cash Change Panel */}
                   {paymentMethod === "dinheiro" && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-4 pt-2"
                     >
                       <div className="space-y-1">
                         <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor Recebido (R$)</label>
-                        <input 
+                        <input
                           type="text"
                           required
                           value={receivedAmount}
@@ -957,10 +1497,18 @@ export default function PdvPage() {
                         />
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setReceivedAmount(totalAmount.toFixed(2).replace(".", ","))}
+                          className="px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/15 rounded-lg text-xs font-mono text-emerald-300"
+                        >
+                          Exato
+                        </button>
                         {cashQuickNotes.map(note => (
                           <button
                             key={note}
+                            type="button"
                             onClick={() => setReceivedAmount(note.toString())}
                             className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-mono text-white/80"
                           >
@@ -980,14 +1528,14 @@ export default function PdvPage() {
 
                   {/* Customer Debt Panel ("Fiado") */}
                   {paymentMethod === "fiado" && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-3 pt-2"
                     >
                       <div className="space-y-1">
                         <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Nome do Cliente (Devedor)</label>
-                        <input 
+                        <input
                           type="text"
                           required
                           value={debtCustomerName}
@@ -1022,12 +1570,13 @@ export default function PdvPage() {
                 <button
                   onClick={handleCheckoutSubmit}
                   disabled={
+                    isProcessingCheckout ||
                     (paymentMethod === "dinheiro" && (!receivedAmount || changeAmount < 0)) ||
                     (paymentMethod === "fiado" && (!debtCustomerName.trim() || activeCustomerDebt >= 150))
                   }
                   className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase transition-all shadow-lg shadow-emerald-500/10"
                 >
-                  Confirmar Pagamento
+                  {isProcessingCheckout ? "Processando..." : "Confirmar Pagamento"}
                 </button>
               </div>
             </motion.div>
@@ -1039,13 +1588,13 @@ export default function PdvPage() {
       <AnimatePresence>
         {adjustingProduct && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-md bg-[#0e0e10] border border-white/10 rounded-2xl p-6 text-white shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setAdjustingProduct(null)}
                 className="absolute top-4 right-4 text-white/40 hover:text-white"
               >
@@ -1064,7 +1613,7 @@ export default function PdvPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Custo de Compra (R$)</label>
-                    <input 
+                    <input
                       type="text"
                       required
                       value={tempPriceCost}
@@ -1075,7 +1624,7 @@ export default function PdvPage() {
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Preço de Venda (R$)</label>
-                    <input 
+                    <input
                       type="text"
                       required
                       value={tempPriceSell}
@@ -1088,7 +1637,7 @@ export default function PdvPage() {
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Código de Barras (Opcional)</label>
-                  <input 
+                  <input
                     type="text"
                     value={tempBarcode}
                     onChange={(e) => setTempBarcode(e.target.value)}
@@ -1113,7 +1662,7 @@ export default function PdvPage() {
       <AnimatePresence>
         {isSuccessOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1157,7 +1706,7 @@ export default function PdvPage() {
       <AnimatePresence>
         {isClosingSession && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}

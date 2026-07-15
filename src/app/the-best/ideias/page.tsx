@@ -3,21 +3,21 @@
 import React, { useState } from "react";
 import { useAdega, IdeaItem } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Lightbulb, 
-  Plus, 
-  Trash2, 
-  PlusCircle, 
-  Tag, 
+import {
+  Lightbulb,
+  Plus,
+  Trash2,
+  PlusCircle,
+  Tag,
   AlertCircle,
-  X 
+  X
 } from "lucide-react";
 
 export default function IdeiasPage() {
-  const { 
-    ideas, 
-    addIdea, 
-    deleteIdea 
+  const {
+    ideas,
+    addIdea,
+    deleteIdea
   } = useAdega();
 
   const [isAddingIdea, setIsAddingIdea] = useState(false);
@@ -70,7 +70,7 @@ export default function IdeiasPage() {
 
   return (
     <div className="space-y-8 py-4">
-      
+
       {/* Page Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/5">
         <div>
@@ -80,7 +80,7 @@ export default function IdeiasPage() {
           </h2>
         </div>
 
-        <button 
+        <button
           onClick={() => setIsAddingIdea(true)}
           className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
         >
@@ -95,8 +95,8 @@ export default function IdeiasPage() {
           {ideas.map((idea) => {
             const colorCfg = colorOptions.find(c => c.id === idea.color) || colorOptions[0];
             return (
-              <div 
-                key={idea.id} 
+              <div
+                key={idea.id}
                 className={`border rounded-xl p-6 relative overflow-hidden group flex flex-col justify-between min-h-[180px] hover:scale-[1.01] transition-all duration-300 ${colorCfg.bg}`}
               >
                 {/* Top bar: title & category */}
@@ -123,7 +123,7 @@ export default function IdeiasPage() {
                     {idea.date}
                   </span>
 
-                  <button 
+                  <button
                     onClick={() => deleteIdea(idea.id)}
                     className="p-1 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-colors"
                     title="Excluir ideia"
@@ -149,7 +149,7 @@ export default function IdeiasPage() {
         {isAddingIdea && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -157,14 +157,14 @@ export default function IdeiasPage() {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between ${
-                isMobile 
-                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10" 
+                isMobile
+                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10"
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
@@ -174,7 +174,7 @@ export default function IdeiasPage() {
                     <PlusCircle className="w-5 h-5 text-white/80" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">CRIAR NOVA IDEIA</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsAddingIdea(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -185,8 +185,8 @@ export default function IdeiasPage() {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Título da Ideia</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={ideaTitle}
                       onChange={(e) => setIdeaTitle(e.target.value)}
@@ -199,13 +199,13 @@ export default function IdeiasPage() {
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Categoria</label>
                     <div className="flex flex-wrap gap-2">
                       {categories.map((cat) => (
-                        <button 
+                        <button
                           key={cat}
                           type="button"
                           onClick={() => setIdeaCat(cat)}
                           className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider transition-all duration-300 ${
-                            ideaCat === cat 
-                              ? "bg-white text-black font-semibold" 
+                            ideaCat === cat
+                              ? "bg-white text-black font-semibold"
                               : "bg-white/[0.02] border border-white/5 text-white/50 hover:text-white"
                           }`}
                         >
@@ -217,7 +217,7 @@ export default function IdeiasPage() {
 
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Descrição / Detalhes</label>
-                    <textarea 
+                    <textarea
                       required
                       rows={4}
                       value={ideaDesc}
@@ -231,7 +231,7 @@ export default function IdeiasPage() {
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block font-bold">Estilo de Cor (Mural Sumi-ê)</label>
                     <div className="flex items-center gap-3">
                       {colorOptions.map((opt) => (
-                        <button 
+                        <button
                           key={opt.id}
                           type="button"
                           onClick={() => setIdeaColor(opt.id)}
@@ -246,7 +246,7 @@ export default function IdeiasPage() {
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >

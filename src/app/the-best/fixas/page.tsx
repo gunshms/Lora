@@ -3,15 +3,15 @@
 import React, { useState } from "react";
 import { useAdega } from "@/context/AdegaContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Plus, 
-  Trash2, 
-  Check, 
-  Filter, 
-  User, 
-  Users, 
-  PlusCircle, 
-  RotateCcw, 
+import {
+  Plus,
+  Trash2,
+  Check,
+  Filter,
+  User,
+  Users,
+  PlusCircle,
+  RotateCcw,
   AlertCircle,
   X,
   Calendar,
@@ -23,11 +23,11 @@ import Image from "next/image";
 type FixedFilter = "all" | "gu" | "melhor" | "ambos" | "pending";
 
 export default function ContasFixasPage() {
-  const { 
-    fixedCosts, 
-    addFixedCost, 
-    toggleFixedCostPaid, 
-    deleteFixedCost 
+  const {
+    fixedCosts,
+    addFixedCost,
+    toggleFixedCostPaid,
+    deleteFixedCost
   } = useAdega();
 
   // Filters
@@ -53,7 +53,7 @@ export default function ContasFixasPage() {
 
   // Calculations
   const totalGeral = fixedCosts.reduce((sum, item) => sum + item.amount, 0);
-  
+
   const totalGu = fixedCosts.reduce((sum, item) => {
     if (item.assignee === "gu") return sum + item.amount;
     if (item.assignee === "ambos") return sum + (item.amount / 2);
@@ -126,7 +126,7 @@ export default function ContasFixasPage() {
   const handleResetAll = async () => {
     const confirmReset = window.confirm("Deseja zerar os status de pagamento de todas as contas fixas para iniciar um novo ciclo mensal?");
     if (!confirmReset) return;
-    
+
     // We toggle the ones that are paid back to unpaid
     const paidItems = fixedCosts.filter(f => f.paidThisMonth);
     for (const item of paidItems) {
@@ -143,7 +143,7 @@ export default function ContasFixasPage() {
 
   return (
     <div className="space-y-8 py-4">
-      
+
       {/* Title Header */}
       <div className="flex items-center justify-between pb-6 border-b border-white/5">
         <div>
@@ -155,7 +155,7 @@ export default function ContasFixasPage() {
 
         <div className="flex gap-2">
           {fixedCosts.some(f => f.paidThisMonth) && (
-            <button 
+            <button
               onClick={handleResetAll}
               className="flex items-center gap-2 px-3 py-2 bg-white/[0.02] border border-white/10 text-white/80 hover:text-white font-semibold font-headline text-xs tracking-wider rounded uppercase transition-all duration-300"
               title="Zerar todos os pagamentos do mês"
@@ -165,7 +165,7 @@ export default function ContasFixasPage() {
             </button>
           )}
 
-          <button 
+          <button
             onClick={() => setIsAddingFixed(true)}
             className="flex items-center gap-2 px-4 py-2 bg-white text-black font-semibold font-headline text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
           >
@@ -177,7 +177,7 @@ export default function ContasFixasPage() {
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        
+
         {/* Total Recorrente */}
         <div className="bg-[#0b0b0d] border border-white/5 p-4 rounded-lg flex flex-col justify-between">
           <span className="text-[10px] font-mono text-white/40 uppercase tracking-wider">Custo Fixo Total</span>
@@ -221,10 +221,10 @@ export default function ContasFixasPage() {
               </span>
               <span className="text-[10px] font-mono text-emerald-400 font-bold">{progressoPorcentagem}%</span>
             </div>
-            
+
             {/* Elegant micro progress bar */}
             <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 relative">
-              <motion.div 
+              <motion.div
                 className="absolute inset-y-0 left-0 bg-emerald-400 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progressoPorcentagem}%` }}
@@ -238,7 +238,7 @@ export default function ContasFixasPage() {
 
       {/* Filter and Content Card */}
       <div className="bg-[#0b0b0d] border border-white/5 rounded-xl overflow-hidden">
-        
+
         {/* Table Controls */}
         <div className="px-6 py-4 bg-white/[0.01] border-b border-white/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -248,12 +248,12 @@ export default function ContasFixasPage() {
 
           <div className="flex flex-wrap gap-2">
             {fixedFilters.map((f) => (
-              <button 
+              <button
                 key={f.id}
                 onClick={() => setFixedFilter(f.id)}
                 className={`px-3 py-1.5 rounded text-xs font-mono tracking-wider transition-all duration-300 ${
-                  fixedFilter === f.id 
-                    ? "bg-white text-black font-semibold" 
+                  fixedFilter === f.id
+                    ? "bg-white text-black font-semibold"
                     : "bg-white/[0.02] border border-white/5 text-white/60 hover:text-white"
                 }`}
               >
@@ -297,12 +297,12 @@ export default function ContasFixasPage() {
                             )}
                           </span>
                         </td>
-                        
+
                         {/* Assignee Badge */}
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-mono tracking-wider uppercase border ${
-                            f.assignee === "gu" 
-                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20" 
+                            f.assignee === "gu"
+                              ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
                               : f.assignee === "melhor"
                               ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
                               : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
@@ -330,11 +330,11 @@ export default function ContasFixasPage() {
                         {/* Payment status toggle */}
                         <td className="px-6 py-4">
                           <div className="flex justify-center">
-                            <button 
+                            <button
                               onClick={() => toggleFixedCostPaid(f.id)}
                               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-mono tracking-wider uppercase border transition-all duration-300 ${
-                                f.paidThisMonth 
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-550/15" 
+                                f.paidThisMonth
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-550/15"
                                   : "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-550/15"
                               }`}
                             >
@@ -346,7 +346,7 @@ export default function ContasFixasPage() {
 
                         {/* Delete Item */}
                         <td className="px-6 py-4 text-right">
-                          <button 
+                          <button
                             onClick={() => deleteFixedCost(f.id)}
                             className="p-1.5 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all duration-300"
                             title="Deletar conta recorrente"
@@ -380,8 +380,8 @@ export default function ContasFixasPage() {
                     <div className="flex justify-between items-center pt-2 border-t border-white/5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[9px] font-mono tracking-wider uppercase border ${
-                          f.assignee === "gu" 
-                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20" 
+                          f.assignee === "gu"
+                            ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
                             : f.assignee === "melhor"
                             ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
                             : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
@@ -405,11 +405,11 @@ export default function ContasFixasPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => toggleFixedCostPaid(f.id)}
                           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-mono tracking-wider uppercase border transition-all duration-300 ${
-                            f.paidThisMonth 
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                            f.paidThisMonth
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                               : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                           }`}
                         >
@@ -417,7 +417,7 @@ export default function ContasFixasPage() {
                           {f.paidThisMonth ? "Pago" : "Pendente"}
                         </button>
 
-                        <button 
+                        <button
                           onClick={() => deleteFixedCost(f.id)}
                           className="p-2.5 rounded-md bg-white/[0.02] border border-white/5 hover:bg-red-500/10 text-white/40 hover:text-red-400 transition-colors"
                           title="Deletar conta recorrente"
@@ -443,7 +443,7 @@ export default function ContasFixasPage() {
         {isAddingFixed && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -451,14 +451,14 @@ export default function ContasFixasPage() {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               animate={isMobile ? { translateY: 0, translateX: 0 } : { translateX: 0, translateY: 0 }}
               exit={isMobile ? { translateY: "100%", translateX: 0 } : { translateX: "100%", translateY: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={`relative bg-[#0e0e10] p-6 flex flex-col z-10 shadow-2xl justify-between ${
-                isMobile 
-                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10" 
+                isMobile
+                  ? "w-full h-[85vh] rounded-t-2xl border-t border-white/10"
                   : "w-full max-w-md h-full border-l border-white/10"
               }`}
             >
@@ -468,7 +468,7 @@ export default function ContasFixasPage() {
                     <PlusCircle className="w-5 h-5 text-white/80" />
                     <h3 className="font-headline font-bold text-lg tracking-wider text-white uppercase">CADASTRAR CONTA FIXA</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsAddingFixed(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -477,12 +477,12 @@ export default function ContasFixasPage() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  
+
                   {/* Description */}
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Descrição do Item</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={fixedDesc}
                       onChange={(e) => setFixedDesc(e.target.value)}
@@ -494,8 +494,8 @@ export default function ContasFixasPage() {
                   {/* Monthly Value */}
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Valor Mensal (R$)</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       value={fixedVal}
                       onChange={(e) => setFixedVal(e.target.value)}
@@ -507,8 +507,8 @@ export default function ContasFixasPage() {
                   {/* Due Day */}
                   <div className="space-y-1">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Dia do Vencimento (1 a 31)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       required
                       min={1}
                       max={31}
@@ -522,34 +522,34 @@ export default function ContasFixasPage() {
                   <div className="space-y-2">
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Responsabilidade da Conta</label>
                     <div className="grid grid-cols-3 gap-2">
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setFixedAssignee("gu")}
                         className={`py-2 px-3 rounded text-xs font-mono uppercase border transition-all duration-300 ${
-                          fixedAssignee === "gu" 
-                            ? "bg-sky-500/10 text-sky-400 border-sky-500/30 font-bold" 
+                          fixedAssignee === "gu"
+                            ? "bg-sky-500/10 text-sky-400 border-sky-500/30 font-bold"
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
                         Só Oliveira
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setFixedAssignee("melhor")}
                         className={`py-2 px-3 rounded text-xs font-mono uppercase border transition-all duration-300 ${
-                          fixedAssignee === "melhor" 
-                            ? "bg-purple-500/10 text-purple-400 border-purple-500/30 font-bold" 
+                          fixedAssignee === "melhor"
+                            ? "bg-purple-500/10 text-purple-400 border-purple-500/30 font-bold"
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
                         Só Marques
                       </button>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setFixedAssignee("ambos")}
                         className={`py-2 px-3 rounded text-xs font-mono uppercase border transition-all duration-300 ${
-                          fixedAssignee === "ambos" 
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-bold" 
+                          fixedAssignee === "ambos"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-bold"
                             : "bg-white/[0.02] border-white/5 text-white/40 hover:text-white/60"
                         }`}
                       >
@@ -563,8 +563,8 @@ export default function ContasFixasPage() {
                     <label className="text-xs font-mono uppercase text-white/50 tracking-wider block">Comprovante (Imagem ou PDF)</label>
                     {!fixedReceipt ? (
                       <div className="relative border border-dashed border-white/10 hover:border-white/20 rounded px-3 py-4 bg-black/20 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all">
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*,application/pdf"
                           onChange={handleFileChange}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -597,7 +597,7 @@ export default function ContasFixasPage() {
                   </div>
 
                   {/* Submit Button */}
-                  <button 
+                  <button
                     type="submit"
                     className="w-full mt-4 py-2.5 bg-white text-black font-headline font-bold text-xs tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                   >
@@ -624,7 +624,7 @@ export default function ContasFixasPage() {
         {selectedReceipt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             {/* Backdrop click to close */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -632,7 +632,7 @@ export default function ContasFixasPage() {
               className="absolute inset-0"
             />
             {/* Container */}
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
@@ -646,7 +646,7 @@ export default function ContasFixasPage() {
                     Comprovante: {selectedReceipt.title}
                   </h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedReceipt(null)}
                   className="p-1 rounded text-white/40 hover:text-white"
                 >
@@ -669,9 +669,9 @@ export default function ContasFixasPage() {
                     </a>
                     {/* Embedded preview for desktops */}
                     <div className="hidden sm:block w-full h-[50vh] border border-white/5 mt-4 rounded-lg overflow-hidden">
-                      <iframe 
-                        src={selectedReceipt.url} 
-                        className="w-full h-full bg-black/40" 
+                      <iframe
+                        src={selectedReceipt.url}
+                        className="w-full h-full bg-black/40"
                         title="Visualizador PDF"
                       />
                     </div>
@@ -693,14 +693,14 @@ export default function ContasFixasPage() {
               <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
                 <a
                   href={selectedReceipt.url}
-                  download={selectedReceipt.url.startsWith("data:application/pdf") 
+                  download={selectedReceipt.url.startsWith("data:application/pdf")
                     ? `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.pdf`
                     : `comprovante-${selectedReceipt.title.replace(/\s+/g, "_").toLowerCase()}.jpg`}
                   className="px-4 py-2 bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] text-white font-mono text-[10px] tracking-wider rounded uppercase transition-colors"
                 >
                   Download Direto
                 </a>
-                <button 
+                <button
                   onClick={() => setSelectedReceipt(null)}
                   className="px-4 py-2 bg-white text-black font-semibold font-headline text-[10px] tracking-wider rounded uppercase hover:bg-white/90 transition-all duration-300"
                 >

@@ -2,11 +2,11 @@
 
 import { useAdega } from "@/context/AdegaContext";
 import { motion } from "framer-motion";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Wine, 
-  Lightbulb, 
+import {
+  TrendingUp,
+  DollarSign,
+  Wine,
+  Lightbulb,
   ArrowRight,
   TrendingDown,
   ShoppingBag,
@@ -25,7 +25,7 @@ export default function AdegaDashboard() {
 
   const totalGuPago = costs.reduce((sum, item) => sum + (item.buyer === "gu" && item.paid ? item.amount : 0), 0);
   const totalMelhorPago = costs.reduce((sum, item) => sum + (item.buyer === "melhor" && item.paid ? item.amount : 0), 0);
-  
+
   const totalGuPendente = costs.reduce((sum, item) => sum + (item.buyer === "gu" && !item.paid ? item.amount : 0), 0);
   const totalMelhorPendente = costs.reduce((sum, item) => sum + (item.buyer === "melhor" && !item.paid ? item.amount : 0), 0);
 
@@ -64,7 +64,7 @@ export default function AdegaDashboard() {
   } as const;
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
@@ -78,14 +78,14 @@ export default function AdegaDashboard() {
             VISÃO GERAL
           </h2>
         </div>
-        
+
         {/* Decorative Quote */}
         <div className="flex items-center gap-3 bg-white/[0.01] border border-white/5 px-4 py-2.5 rounded-lg max-w-sm">
-          <Image 
-            src="/adega/crest_white.png" 
-            alt="Crest Tiny" 
-            width={24} 
-            height={24} 
+          <Image
+            src="/adega/crest_white.png"
+            alt="Crest Tiny"
+            width={24}
+            height={24}
             className="invert opacity-45 flex-shrink-0"
           />
           <p className="text-[10px] font-mono text-white/50 leading-relaxed uppercase tracking-wider">
@@ -96,13 +96,13 @@ export default function AdegaDashboard() {
 
       {/* Main Stats Grid */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        
+
         {/* Total Cost Card */}
         <div className="relative overflow-hidden bg-gradient-to-br from-[#0e0e11] to-[#070709] border border-white/5 p-6 rounded-xl group">
           <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
             <DollarSign className="w-48 h-48 text-white" />
           </div>
-          
+
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-mono text-white/40 uppercase tracking-wider">Total Investido</span>
             <span className="p-1.5 rounded bg-white/[0.03] text-white/80 border border-white/10">
@@ -113,7 +113,7 @@ export default function AdegaDashboard() {
           <h3 className="text-3xl font-headline font-bold text-white tracking-wide">
             {formatCurrency(totalGeral)}
           </h3>
-          
+
           <div className="flex items-center justify-between mt-6 text-[10px] font-mono text-white/30 uppercase border-t border-white/5 pt-4">
             <span>Gu: {formatCurrency(totalGu)}</span>
             <span>Melhor: {formatCurrency(totalMelhor)}</span>
@@ -193,10 +193,10 @@ export default function AdegaDashboard() {
 
       {/* Grid: Alerts and Recent Items */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
+
         {/* Left Column: Stock alerts & Recent Costs */}
         <div className="space-y-8">
-          
+
           {/* Urgent Stock Card */}
           <div className="bg-[#0b0b0d] border border-white/5 rounded-xl p-6 flex flex-col justify-between">
             <div>
@@ -205,8 +205,8 @@ export default function AdegaDashboard() {
                   <ShoppingBag className="w-4.5 h-4.5 text-rose-500" />
                   <h3 className="font-headline font-bold text-md tracking-wider text-white uppercase">Compras Urgentes</h3>
                 </div>
-                <Link 
-                  href="/the-best/estoque" 
+                <Link
+                  href="/the-best/estoque"
                   className="text-xs text-white/40 hover:text-white flex items-center gap-1 font-mono transition-colors"
                 >
                   Ver Estoque
@@ -217,8 +217,8 @@ export default function AdegaDashboard() {
               {urgentStock.length > 0 ? (
                 <div className="space-y-3">
                   {urgentStock.map((item) => (
-                    <div 
-                      key={item.id} 
+                    <div
+                      key={item.id}
                       className="flex items-center justify-between px-4 py-3 rounded-lg bg-rose-950/10 border border-rose-500/10 gap-4"
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -254,8 +254,8 @@ export default function AdegaDashboard() {
                 <DollarSign className="w-4.5 h-4.5 text-white/70" />
                 <h3 className="font-headline font-bold text-md tracking-wider text-white uppercase">Últimos Lançamentos</h3>
               </div>
-              <Link 
-                href="/the-best/custos" 
+              <Link
+                href="/the-best/custos"
                 className="text-xs text-white/40 hover:text-white flex items-center gap-1 font-mono transition-colors"
               >
                 Ver Livro-Caixa
@@ -266,8 +266,8 @@ export default function AdegaDashboard() {
             {recentCosts.length > 0 ? (
               <div className="space-y-3">
                 {recentCosts.map((c) => (
-                  <div 
-                    key={c.id} 
+                  <div
+                    key={c.id}
                     className="flex items-center justify-between px-4 py-3 rounded-lg bg-white/[0.01] border border-white/5 hover:border-white/10 transition-colors"
                   >
                     <div className="flex flex-col gap-0.5">
@@ -278,8 +278,8 @@ export default function AdegaDashboard() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`text-[10px] font-mono tracking-wider uppercase px-2 py-0.5 rounded border ${
-                        c.paid 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                        c.paid
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                           : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                       }`}>
                         {c.paid ? "Pago" : "Pendente"}
@@ -302,20 +302,20 @@ export default function AdegaDashboard() {
 
         {/* Right Column: Decorative wave banner & Recent Ideas */}
         <div className="space-y-8">
-          
+
           {/* Zen Wave Banner */}
           <div className="relative overflow-hidden bg-gradient-to-br from-[#0B0B0D] to-[#040405] border border-white/5 rounded-xl p-8 min-h-[220px] flex flex-col justify-end group">
             {/* The White Crest watermark as background */}
             <div className="absolute right-0 bottom-0 w-64 h-64 opacity-5 transform translate-x-8 translate-y-8 pointer-events-none group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 select-none">
-              <Image 
-                src="/adega/crest_white.png" 
-                alt="Wave Watermark" 
-                width={256} 
-                height={256} 
+              <Image
+                src="/adega/crest_white.png"
+                alt="Wave Watermark"
+                width={256}
+                height={256}
                 className="object-contain invert"
               />
             </div>
-            
+
             {/* The Text Sticker logo */}
             <div className="mb-4 inline-block transform -rotate-1 hover:rotate-0 transition-transform duration-300">
               <div className="px-4 py-2 bg-white text-black font-black font-headline text-lg tracking-widest uppercase border border-black rounded shadow-lg">
@@ -335,8 +335,8 @@ export default function AdegaDashboard() {
                 <Lightbulb className="w-4.5 h-4.5 text-amber-400" />
                 <h3 className="font-headline font-bold text-md tracking-wider text-white uppercase">Mural de Ideias</h3>
               </div>
-              <Link 
-                href="/the-best/ideias" 
+              <Link
+                href="/the-best/ideias"
                 className="text-xs text-white/40 hover:text-white flex items-center gap-1 font-mono transition-colors"
               >
                 Ver Mural
@@ -355,8 +355,8 @@ export default function AdegaDashboard() {
                     charcoal: "border-white/10 bg-white/5",
                   };
                   return (
-                    <div 
-                      key={idea.id} 
+                    <div
+                      key={idea.id}
                       className={`px-4 py-3 rounded-lg border ${borderColors[idea.color] || "border-white/5 bg-white/[0.01]"}`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-1">

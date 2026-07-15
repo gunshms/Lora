@@ -5,14 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdegaProvider, useAdega } from "@/context/AdegaContext";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Wine, 
-  Lightbulb, 
-  Settings, 
-  Menu, 
-  X, 
+import {
+  TrendingUp,
+  DollarSign,
+  Wine,
+  Lightbulb,
+  Settings,
+  Menu,
+  X,
   Copy,
   HelpCircle,
   CalendarDays,
@@ -173,11 +173,13 @@ alter table thebest_fixed add column if not exists receipt text;`;
             <div className="relative group w-12 h-12 flex-shrink-0">
               <div className="absolute inset-0 rounded-full border border-dashed border-white/10 group-hover:border-white/30 animate-[spin_40s_linear_infinite]" />
               <div className="absolute inset-0.5 rounded-full overflow-hidden bg-black flex items-center justify-center">
-                <Image 
-                  src="/adega/crest_white.png" 
-                  alt="The Best Crest" 
-                  width={40} 
-                  height={40} 
+                <Image
+                  src="/adega/crest_white.png"
+                  alt="The Best Crest"
+                  width={40}
+                  height={40}
+                  unoptimized
+                  priority
                   className="object-contain transform group-hover:scale-110 transition-transform duration-500 invert"
                 />
               </div>
@@ -187,9 +189,9 @@ alter table thebest_fixed add column if not exists receipt text;`;
               <span className="text-[10px] tracking-[0.25em] text-white/40 font-mono uppercase">ADEGA & BAR</span>
             </div>
           </div>
-          
+
           {onClose && (
-            <button 
+            <button
               onClick={onClose}
               className="lg:hidden p-2.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/60 hover:text-white transition-colors"
               aria-label="Fechar menu"
@@ -217,7 +219,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
               }`} />
               <span className="font-headline tracking-widest uppercase text-xs">Frente de Caixa (PDV)</span>
             </div>
-            
+
             {pathname !== "/the-best/pdv" && (
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -231,14 +233,14 @@ alter table thebest_fixed add column if not exists receipt text;`;
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link 
-                key={item.href} 
-                href={item.href} 
+              <Link
+                key={item.href}
+                href={item.href}
                 onClick={onClose}
                 className="relative flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all duration-300 group"
               >
                 {isActive && (
-                  <motion.div 
+                  <motion.div
                     layoutId="activeNavIndicator"
                     className="absolute inset-0 bg-white/[0.03] border border-white/5 rounded-lg -z-10"
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
@@ -267,7 +269,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
               <User className="w-3.5 h-3.5 text-white/40" />
               {currentUser}
             </span>
-            <button 
+            <button
               onClick={() => {
                 logout();
                 if (onClose) onClose();
@@ -280,18 +282,18 @@ alter table thebest_fixed add column if not exists receipt text;`;
         )}
 
         <ConnectionBadge />
-        
+
         <div className="flex items-center justify-between pt-4 border-t border-white/5">
-          <button 
+          <button
             onClick={() => setShowSettingsModal(true)}
             className="flex items-center gap-2 text-xs text-white/40 hover:text-white/80 transition-colors duration-300 font-mono"
           >
             <Settings className="w-3.5 h-3.5" />
             Configurar BD
           </button>
-          
+
           {/* Secret/Hidden Audit Log Button */}
-          <button 
+          <button
             onClick={onOpenAudit}
             className="text-[10px] font-mono text-white/20 hover:text-white/40 tracking-wider transition-colors cursor-pointer select-none"
             title="Registro Secreto"
@@ -305,13 +307,13 @@ alter table thebest_fixed add column if not exists receipt text;`;
       <AnimatePresence>
         {showSettingsModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-lg bg-[#0e0e10] border border-white/10 rounded-xl p-6 text-white overflow-y-auto max-h-[90vh] shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setShowSettingsModal(false)}
                 className="absolute top-4 right-4 text-white/40 hover:text-white"
               >
@@ -336,8 +338,8 @@ alter table thebest_fixed add column if not exists receipt text;`;
               <form onSubmit={handleSave} className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Supabase URL</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={inputUrl}
                     onChange={(e) => setInputUrl(e.target.value)}
                     placeholder="https://suaconta.supabase.co"
@@ -347,8 +349,8 @@ alter table thebest_fixed add column if not exists receipt text;`;
 
                 <div className="space-y-1">
                   <label className="text-xs font-mono uppercase text-white/50 tracking-wider">Chave Anon (Public)</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={inputKey}
                     onChange={(e) => setInputKey(e.target.value)}
                     placeholder="eyJhbGciOi..."
@@ -357,7 +359,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <button 
+                  <button
                     type="submit"
                     disabled={isTestingConfig}
                     className="flex-1 px-4 py-2.5 bg-white text-black font-semibold rounded text-xs hover:bg-white/90 transition-all uppercase tracking-wider disabled:opacity-50"
@@ -366,7 +368,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
                   </button>
 
                   {dbConfig && (
-                    <button 
+                    <button
                       type="button"
                       onClick={() => {
                         disconnect();
@@ -384,8 +386,8 @@ alter table thebest_fixed add column if not exists receipt text;`;
 
               {/* DB SQL Help */}
               <div className="mt-6 pt-6 border-t border-white/5">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => setShowSqlHelp(!showSqlHelp)}
                   className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white transition-colors uppercase font-mono tracking-wider"
                 >
@@ -394,7 +396,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
                 </button>
 
                 {showSqlHelp && (
-                  <motion.div 
+                  <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     className="mt-4 p-4 bg-black/60 rounded-lg border border-white/5 space-y-3"
@@ -406,7 +408,7 @@ alter table thebest_fixed add column if not exists receipt text;`;
                       <pre className="text-[10px] font-mono text-emerald-400/90 overflow-x-auto p-3 bg-black/80 rounded border border-white/5 leading-relaxed max-h-48">
                         {sqlCreateScripts}
                       </pre>
-                      <button 
+                      <button
                         onClick={() => {
                           navigator.clipboard.writeText(sqlCreateScripts);
                           alert("SQL Copiado!");
@@ -434,11 +436,13 @@ function PageLoadingSkeleton() {
       <div className="flex flex-col items-center gap-6">
         <div className="relative w-24 h-24 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-[spin_20s_linear_infinite]" />
-          <Image 
-            src="/adega/crest_white.png" 
-            alt="The Best Crest" 
-            width={72} 
-            height={72} 
+          <Image
+            src="/adega/crest_white.png"
+            alt="The Best Crest"
+            width={72}
+            height={72}
+            unoptimized
+            priority
             className="object-contain invert opacity-60 animate-pulse"
           />
         </div>
@@ -493,8 +497,8 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
     return (
       <main className="w-full min-h-screen bg-[#050505] text-[#F2F0E9] flex flex-col justify-center items-center p-6 selection:bg-white selection:text-black">
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-radial-gradient from-white/[0.01] to-transparent pointer-events-none rounded-full blur-3xl" />
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -504,11 +508,13 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="relative w-16 h-16 flex items-center justify-center">
               <div className="absolute inset-0 rounded-full border border-dashed border-white/20 animate-[spin_30s_linear_infinite]" />
-              <Image 
-                src="/adega/crest_white.png" 
-                alt="The Best Crest" 
-                width={48} 
-                height={48} 
+              <Image
+                src="/adega/crest_white.png"
+                alt="The Best Crest"
+                width={48}
+                height={48}
+                unoptimized
+                priority
                 className="object-contain invert opacity-80"
               />
             </div>
@@ -524,23 +530,23 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             <div className="space-y-2">
               <label className="text-[10px] font-mono uppercase text-white/50 tracking-wider block">Selecione o Operador</label>
               <div className="grid grid-cols-2 gap-3">
-                <button 
+                <button
                   type="button"
                   onClick={() => setSelectedUser("Oliveira")}
                   className={`py-2.5 rounded-xl text-xs font-mono uppercase border transition-all duration-300 font-semibold ${
-                    selectedUser === "Oliveira" 
-                      ? "bg-white text-black border-white shadow-lg" 
+                    selectedUser === "Oliveira"
+                      ? "bg-white text-black border-white shadow-lg"
                       : "bg-black/40 border-white/5 text-white/40 hover:text-white/60"
                   }`}
                 >
                   Oliveira
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => setSelectedUser("Marques")}
                   className={`py-2.5 rounded-xl text-xs font-mono uppercase border transition-all duration-300 font-semibold ${
-                    selectedUser === "Marques" 
-                      ? "bg-white text-black border-white shadow-lg" 
+                    selectedUser === "Marques"
+                      ? "bg-white text-black border-white shadow-lg"
                       : "bg-black/40 border-white/5 text-white/40 hover:text-white/60"
                   }`}
                 >
@@ -552,23 +558,23 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
             {/* PIN Passcode Input */}
             <div className="space-y-1">
               <label className="text-[10px] font-mono uppercase text-white/50 tracking-wider block">Código PIN / Senha</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 required
                 maxLength={4}
                 value={pinInput}
                 onChange={(e) => setPinInput(e.target.value)}
                 placeholder="••••"
                 className={`w-full px-4 py-3 bg-black/60 border rounded-xl text-center text-lg font-mono tracking-[0.5em] focus:outline-none transition-all ${
-                  loginError 
-                    ? "border-rose-500 text-rose-400 bg-rose-950/10" 
+                  loginError
+                    ? "border-rose-500 text-rose-400 bg-rose-950/10"
                     : "border-white/10 focus:border-white/30 text-white placeholder-white/20"
                 }`}
               />
             </div>
 
             {/* Submit */}
-            <button 
+            <button
               type="submit"
               className="w-full py-3 bg-white text-black font-headline font-bold text-xs tracking-widest rounded-xl uppercase hover:bg-white/90 transition-all shadow-lg"
             >
@@ -587,15 +593,17 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#050505] text-[#F2F0E9] font-body flex flex-col lg:flex-row relative overflow-x-hidden selection:bg-white selection:text-black">
-      
+
       {/* Mobile Top Navigation Bar */}
       <header className="lg:hidden w-full px-6 py-4 bg-[#080809]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <Image 
-            src="/adega/crest_white.png" 
-            alt="The Best Crest" 
-            width={32} 
-            height={32} 
+          <Image
+            src="/adega/crest_white.png"
+            alt="The Best Crest"
+            width={32}
+            height={32}
+            unoptimized
+            priority
             className="object-contain invert"
           />
           <div>
@@ -605,7 +613,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setMobileMenuOpen(true)}
             className="p-2.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/80 hover:text-white transition-colors"
             aria-label="Abrir menu"
@@ -620,7 +628,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-50 lg:hidden flex">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -628,19 +636,19 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             {/* Drawer Panel */}
-            <motion.div 
+            <motion.div
               initial={{ translateX: "-100%" }}
               animate={{ translateX: 0 }}
               exit={{ translateX: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative w-80 max-w-[85vw] h-full"
             >
-              <SidebarContent 
-                onClose={() => setMobileMenuOpen(false)} 
+              <SidebarContent
+                onClose={() => setMobileMenuOpen(false)}
                 onOpenAudit={() => {
                   setMobileMenuOpen(false);
                   setShowAuditDrawer(true);
-                }} 
+                }}
               />
             </motion.div>
           </div>
@@ -655,9 +663,9 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <main className="flex-1 w-full lg:max-h-screen lg:overflow-y-auto min-h-[calc(100vh-69px)] lg:min-h-screen relative p-6 lg:p-10 flex flex-col justify-start">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-radial-gradient from-white/[0.015] to-transparent pointer-events-none -z-10 rounded-full blur-3xl" />
-        
+
         {/* Animated Page Wrap */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -672,7 +680,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
         {showAuditDrawer && (
           <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-stretch lg:justify-end bg-black/60 backdrop-blur-sm">
             {/* Backdrop */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -680,7 +688,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
               className="absolute inset-0"
             />
             {/* Drawer */}
-            <motion.div 
+            <motion.div
               initial={{ translateX: "100%" }}
               animate={{ translateX: 0 }}
               exit={{ translateX: "100%" }}
@@ -693,7 +701,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                     <ShieldAlert className="w-5 h-5 text-amber-500" />
                     <h3 className="font-headline font-bold text-base tracking-wider text-white uppercase">Logs de Auditoria</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setShowAuditDrawer(false)}
                     className="p-1 rounded text-white/40 hover:text-white"
                   >
@@ -705,7 +713,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
                 {auditLog.length > 0 ? (
                   <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
                     {auditLog.map((log) => (
-                      <div 
+                      <div
                         key={log.id}
                         className="p-3 bg-white/[0.01] border border-white/5 rounded-lg space-y-1.5"
                       >

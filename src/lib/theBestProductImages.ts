@@ -10,7 +10,7 @@ interface BrandSpec {
   bg: string;
   fg: string;
   accent: string;
-  kind?: "beer" | "soda" | "energy" | "spirit" | "wine" | "water" | "snack" | "smoke" | "ice" | "utility";
+  kind?: "beer" | "soda" | "energy" | "spirit" | "wine" | "water" | "snack" | "smoke" | "ice" | "utility" | "combo";
 }
 
 const brandSpecs: BrandSpec[] = [
@@ -28,6 +28,8 @@ const brandSpecs: BrandSpec[] = [
   { match: /sol long/i, label: "SOL", bg: "#F97316", fg: "#FFFFFF", accent: "#FDE047", kind: "beer" },
   { match: /spaten/i, label: "SPATEN", bg: "#065F46", fg: "#FFF7D6", accent: "#FACC15", kind: "beer" },
   { match: /stella/i, label: "STELLA ARTOIS", bg: "#991B1B", fg: "#FFF7D6", accent: "#D4AF37", kind: "beer" },
+  { match: /beck'?s/i, label: "BECK'S", bg: "#166534", fg: "#FFFFFF", accent: "#DC2626", kind: "beer" },
+  { match: /colorado/i, label: "COLORADO", bg: "#B45309", fg: "#FFF7D6", accent: "#1F2937", kind: "beer" },
   { match: /coca-cola sem|coca cola sem/i, label: "COCA-COLA ZERO", bg: "#111827", fg: "#FFFFFF", accent: "#DC2626", kind: "soda" },
   { match: /coca-cola|coca cola/i, label: "COCA-COLA", bg: "#B91C1C", fg: "#FFFFFF", accent: "#F8FAFC", kind: "soda" },
   { match: /guarana antarctica|antarctica/i, label: "GUARANA", bg: "#16A34A", fg: "#FFFFFF", accent: "#FACC15", kind: "soda" },
@@ -35,12 +37,15 @@ const brandSpecs: BrandSpec[] = [
   { match: /fanta/i, label: "FANTA", bg: "#F97316", fg: "#FFFFFF", accent: "#22C55E", kind: "soda" },
   { match: /pepsi/i, label: "PEPSI", bg: "#1D4ED8", fg: "#FFFFFF", accent: "#EF4444", kind: "soda" },
   { match: /sprite/i, label: "SPRITE", bg: "#16A34A", fg: "#FFFFFF", accent: "#FDE047", kind: "soda" },
+  { match: /schweppes/i, label: "SCHWEPPES", bg: "#FACC15", fg: "#111827", accent: "#FFFFFF", kind: "soda" },
   { match: /agua tonica/i, label: "TONICA ANTARCTICA", bg: "#155E75", fg: "#FFFFFF", accent: "#22D3EE", kind: "soda" },
   { match: /red bull ruby/i, label: "RED BULL RUBY", bg: "#BE185D", fg: "#FFFFFF", accent: "#F9A8D4", kind: "energy" },
   { match: /red bull red/i, label: "RED BULL RED", bg: "#B91C1C", fg: "#FFFFFF", accent: "#60A5FA", kind: "energy" },
   { match: /red bull summer/i, label: "RED BULL SUMMER", bg: "#F97316", fg: "#FFFFFF", accent: "#FDE047", kind: "energy" },
   { match: /red bull tropical/i, label: "RED BULL TROPICAL", bg: "#FACC15", fg: "#172554", accent: "#2563EB", kind: "energy" },
   { match: /red bull/i, label: "RED BULL", bg: "#1E3A8A", fg: "#FFFFFF", accent: "#FACC15", kind: "energy" },
+  { match: /monster/i, label: "MONSTER", bg: "#111827", fg: "#FFFFFF", accent: "#84CC16", kind: "energy" },
+  { match: /baly/i, label: "BALY", bg: "#0F766E", fg: "#FFFFFF", accent: "#F97316", kind: "energy" },
   { match: /vibe/i, label: "VIBE ENERGY", bg: "#7E22CE", fg: "#FFFFFF", accent: "#22D3EE", kind: "energy" },
   { match: /bali/i, label: "BALI ENERGY", bg: "#0F766E", fg: "#FFFFFF", accent: "#F97316", kind: "energy" },
   { match: /one energy/i, label: "ONE ENERGY", bg: "#111827", fg: "#FFFFFF", accent: "#FACC15", kind: "energy" },
@@ -54,12 +59,16 @@ const brandSpecs: BrandSpec[] = [
   { match: /tanqueray/i, label: "TANQUERAY", bg: "#064E3B", fg: "#FFFFFF", accent: "#EF4444", kind: "spirit" },
   { match: /gin rocks/i, label: "ROCKS GIN", bg: "#0F766E", fg: "#FFFFFF", accent: "#A7F3D0", kind: "spirit" },
   { match: /gin eternity/i, label: "ETERNITY GIN", bg: "#1E293B", fg: "#FFFFFF", accent: "#CBD5E1", kind: "spirit" },
+  { match: /beefeater/i, label: "BEEFEATER", bg: "#DC2626", fg: "#FFFFFF", accent: "#1F2937", kind: "spirit" },
   { match: /london factor/i, label: "LONDON FACTOR", bg: "#1E3A8A", fg: "#FFFFFF", accent: "#F8FAFC", kind: "spirit" },
   { match: /jack daniel.*apple/i, label: "JACK APPLE", bg: "#14532D", fg: "#FFFFFF", accent: "#86EFAC", kind: "spirit" },
   { match: /jack daniel.*honey/i, label: "JACK HONEY", bg: "#92400E", fg: "#FFF7D6", accent: "#FDE047", kind: "spirit" },
   { match: /jack daniel/i, label: "JACK DANIEL'S", bg: "#111827", fg: "#FFFFFF", accent: "#F8FAFC", kind: "spirit" },
   { match: /ballantine/i, label: "BALLANTINE'S", bg: "#1E3A8A", fg: "#FFFFFF", accent: "#FDE047", kind: "spirit" },
+  { match: /johnnie walker|red label/i, label: "RED LABEL", bg: "#B91C1C", fg: "#FFFFFF", accent: "#FACC15", kind: "spirit" },
   { match: /white horse/i, label: "WHITE HORSE", bg: "#F8FAFC", fg: "#111827", accent: "#B45309", kind: "spirit" },
+  { match: /passport/i, label: "PASSPORT", bg: "#166534", fg: "#FFFFFF", accent: "#FACC15", kind: "spirit" },
+  { match: /malibu/i, label: "MALIBU", bg: "#F8FAFC", fg: "#1E3A8A", accent: "#F97316", kind: "spirit" },
   { match: /campari/i, label: "CAMPARI", bg: "#B91C1C", fg: "#FFFFFF", accent: "#111827", kind: "spirit" },
   { match: /cachaca 51|pirassununga/i, label: "51", bg: "#FDE047", fg: "#1F2937", accent: "#22C55E", kind: "spirit" },
   { match: /velho barreiro/i, label: "VELHO BARREIRO", bg: "#FACC15", fg: "#422006", accent: "#166534", kind: "spirit" },
@@ -69,6 +78,7 @@ const brandSpecs: BrandSpec[] = [
   { match: /corote morango/i, label: "COROTE MORANGO", bg: "#BE123C", fg: "#FFFFFF", accent: "#FDA4AF", kind: "spirit" },
   { match: /corote pessego/i, label: "COROTE PESSEGO", bg: "#FB923C", fg: "#FFFFFF", accent: "#FED7AA", kind: "spirit" },
   { match: /jurupinga/i, label: "JURUPINGA", bg: "#FDE68A", fg: "#78350F", accent: "#B45309", kind: "spirit" },
+  { match: /xeque mate/i, label: "XEQUE MATE", bg: "#111827", fg: "#FFFFFF", accent: "#FACC15", kind: "energy" },
   { match: /pergola/i, label: "PERGOLA", bg: "#7F1D1D", fg: "#FFF7D6", accent: "#F59E0B", kind: "wine" },
   { match: /quinta do vale/i, label: "QUINTA DO VALE", bg: "#581C87", fg: "#FFFFFF", accent: "#C084FC", kind: "wine" },
   { match: /agua de coco/i, label: "AGUA DE COCO", bg: "#F8FAFC", fg: "#0F766E", accent: "#22C55E", kind: "water" },
@@ -79,11 +89,16 @@ const brandSpecs: BrandSpec[] = [
   { match: /mendorato|amendoim/i, label: "MENDORATO", bg: "#B45309", fg: "#FFF7D6", accent: "#FDE047", kind: "snack" },
   { match: /sensacoes|batata chips/i, label: "SENSACOES", bg: "#7E22CE", fg: "#FFFFFF", accent: "#FACC15", kind: "snack" },
   { match: /torcida/i, label: "TORCIDA", bg: "#B91C1C", fg: "#FFFFFF", accent: "#FDE047", kind: "snack" },
+  { match: /batata/i, label: "BATATA", bg: "#B45309", fg: "#FFF7D6", accent: "#FACC15", kind: "snack" },
   { match: /bic/i, label: "BIC", bg: "#F97316", fg: "#111827", accent: "#FDE047", kind: "utility" },
   { match: /seda bem bolado/i, label: "BEM BOLADO", bg: "#111827", fg: "#FFFFFF", accent: "#22C55E", kind: "smoke" },
   { match: /souza paiol/i, label: "SOUZA PAIOL", bg: "#78350F", fg: "#FFF7D6", accent: "#F59E0B", kind: "smoke" },
   { match: /narguil|nay/i, label: "NARGUILE", bg: "#111827", fg: "#FFFFFF", accent: "#A855F7", kind: "smoke" },
+  { match: /paiero|tabaquinho|crema/i, label: "TABACARIA", bg: "#78350F", fg: "#FFF7D6", accent: "#F59E0B", kind: "smoke" },
+  { match: /seda|piteira/i, label: "ACESSORIOS", bg: "#166534", fg: "#FFFFFF", accent: "#FACC15", kind: "smoke" },
   { match: /carvao/i, label: "CARVAO", bg: "#111827", fg: "#FFFFFF", accent: "#64748B", kind: "utility" },
+  { match: /cuia|tesoura/i, label: "ACESSORIOS", bg: "#334155", fg: "#FFFFFF", accent: "#FACC15", kind: "utility" },
+  { match: /gin com tonica/i, label: "GIN TONICA", bg: "#0F766E", fg: "#FFFFFF", accent: "#FACC15", kind: "combo" },
   { match: /copo/i, label: "COPOS", bg: "#F8FAFC", fg: "#111827", accent: "#CBD5E1", kind: "utility" },
 ];
 
@@ -150,6 +165,16 @@ const getPackageLabel = (name: string) => {
 const shapeForKind = (kind: BrandSpec["kind"], bg: string, fg: string, accent: string, label: string) => {
   const safeLabel = escapeXml(label);
 
+  if (kind === "combo") {
+    return `
+      <path d="M196 146h248l-28 340c-4 48-188 48-192 0z" fill="${fg}" opacity=".96"/>
+      <path d="M222 176h196l-24 292c-2 24-146 24-148 0z" fill="${bg}"/>
+      <path d="M236 238h168l-10 142H246z" fill="${accent}" opacity=".88"/>
+      <path d="M306 92h28l42 90h-30z" fill="${fg}" opacity=".9"/>
+      <text x="320" y="324" text-anchor="middle" font-size="34" font-weight="900" fill="${fg}" font-family="Arial, sans-serif">${safeLabel}</text>
+    `;
+  }
+
   if (kind === "beer" || kind === "energy" || kind === "soda") {
     return `
       <rect x="206" y="112" width="228" height="392" rx="44" fill="${fg}" opacity=".96"/>
@@ -199,12 +224,14 @@ export const isUsableStoredProductImage = (url?: string | null) => {
 export const buildProductArtDataUrl = (item: ProductImageItem) => {
   const cleanName = compact(item.name || "Produto");
   const spec = getBrandSpec(cleanName);
+  const normalizedName = normalizeProductName(cleanName);
   const volume = getVolume(cleanName);
   const packageLabel = getPackageLabel(cleanName);
   const title = escapeXml(cleanName.toUpperCase());
   const brand = escapeXml(spec.label);
   const meta = escapeXml(compact([packageLabel, volume].filter(Boolean).join(" - ")));
-  const shape = shapeForKind(spec.kind, spec.bg, spec.fg, spec.accent, spec.label);
+  const isPreparedDrink = /copao|copo de|caipirinha|dose |gin com tonica/.test(normalizedName);
+  const shape = shapeForKind(isPreparedDrink ? "combo" : spec.kind, spec.bg, spec.fg, spec.accent, spec.label);
 
   const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">

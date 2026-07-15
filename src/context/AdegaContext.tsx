@@ -385,37 +385,47 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         if (debtsRes.error) throw new Error(`Erro na tabela de fiado: ${debtsRes.error.message}`);
         if (auditRes.error) throw new Error(`Erro na tabela de auditoria: ${auditRes.error.message}`);
 
-        async function seedWhenCloudIsEmpty<T extends { id: string }>(
+        const migrationKey = "thebest_cloud_migration";
+        const migrationVersion = "hualkhyrcxoxiomuwqzb:2026-07-15";
+        const shouldMigrateLocalData = localStorage.getItem(migrationKey) !== migrationVersion;
+
+        async function mergeLocalDataOnce<T extends { id: string }>(
           table: string,
           cloudRows: T[],
           localKey: string,
         ): Promise<T[]> {
-          if (cloudRows.length > 0) return cloudRows;
+          if (!shouldMigrateLocalData) return cloudRows;
 
           const localRows = readLocalItems<T>(localKey);
           if (localRows.length > 0) {
             const { error } = await activeClient.from(table).upsert(localRows, { onConflict: "id" });
             if (error) throw new Error(`Erro ao migrar ${table}: ${error.message}`);
           }
-          return localRows;
+
+          const mergedRows = new Map(cloudRows.map((row) => [row.id, row]));
+          localRows.forEach((row) => mergedRows.set(row.id, row));
+          return Array.from(mergedRows.values());
         }
 
         const cloudStock = stockRes.data || [];
-        const costsData = await seedWhenCloudIsEmpty("thebest_costs", costsRes.data || [], "thebest_costs");
-        const ideasData = await seedWhenCloudIsEmpty("thebest_ideas", ideasRes.data || [], "thebest_ideas");
-        const fixedData = await seedWhenCloudIsEmpty("thebest_fixed", fixedRes.data || [], "thebest_fixed");
-        const salesData = await seedWhenCloudIsEmpty("thebest_sales", salesRes.data || [], "thebest_sales");
-        const debtsData = await seedWhenCloudIsEmpty("thebest_debts", debtsRes.data || [], "thebest_debts");
-        const auditData = await seedWhenCloudIsEmpty("thebest_audit", auditRes.data || [], "thebest_audit");
-        const stockSource = cloudStock.length > 0
-          ? cloudStock
-          : readLocalItems<StockItem>("thebest_stock");
+        const costsData = await mergeLocalDataOnce("thebest_costs", costsRes.data || [], "thebest_costs");
+        const ideasData = await mergeLocalDataOnce("thebest_ideas", ideasRes.data || [], "thebest_ideas");
+        const fixedData = await mergeLocalDataOnce("thebest_fixed", fixedRes.data || [], "thebest_fixed");
+        const salesData = await mergeLocalDataOnce("thebest_sales", salesRes.data || [], "thebest_sales");
+        const debtsData = await mergeLocalDataOnce("thebest_debts", debtsRes.data || [], "thebest_debts");
+        const auditData = await mergeLocalDataOnce("thebest_audit", auditRes.data || [], "thebest_audit");
+        const localStock = shouldMigrateLocalData
+          ? readLocalItems<StockItem>("thebest_stock")
+          : [];
+        const mergedStock = new Map(cloudStock.map((item) => [item.id, item]));
+        localStock.forEach((item) => mergedStock.set(item.id, item));
+        const stockSource = Array.from(mergedStock.values());
         const priceCatalogResult = applyTheBestPriceCatalog(stockSource);
 
-        if (cloudStock.length === 0 || priceCatalogResult.changedIds.length > 0) {
+        if (cloudStock.length === 0 || shouldMigrateLocalData || priceCatalogResult.changedIds.length > 0) {
           const changedIdSet = new Set(priceCatalogResult.changedIds);
           const changedRows = priceCatalogResult.stock
-            .filter((item) => cloudStock.length === 0 || changedIdSet.has(item.id))
+            .filter((item) => cloudStock.length === 0 || shouldMigrateLocalData || changedIdSet.has(item.id))
             .map((item) => ({
               id: item.id,
               name: item.name,
@@ -448,6 +458,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         setDebts(debtsData);
         setAuditLog(auditData);
         setStock(priceCatalogResult.stock);
+        if (shouldMigrateLocalData) localStorage.setItem(migrationKey, migrationVersion);
         setIsCloudMode(true);
       } catch (err: unknown) {
         setDbError(getErrorMessage(err, "Falha ao consultar tabelas na nuvem."));

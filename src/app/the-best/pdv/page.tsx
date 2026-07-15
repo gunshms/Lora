@@ -941,7 +941,7 @@ export default function PdvPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            <div className="flex flex-wrap items-center gap-2">
               {productFilterOptions.map((filter) => {
                 const active = productFilter === filter.id;
 

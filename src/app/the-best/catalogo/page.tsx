@@ -219,7 +219,7 @@ export default function CatalogoPublicoPage() {
         </div>
 
         {/* Categories Tab Swiper */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin select-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none">
           {categoryOptions.map((cat) => {
             const Icon = cat.icon;
             const active = selectedCategory === cat.id;

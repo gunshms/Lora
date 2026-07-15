@@ -422,7 +422,12 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         const stockSource = Array.from(mergedStock.values());
         const priceCatalogResult = applyTheBestPriceCatalog(stockSource);
 
-        if (cloudStock.length === 0 || shouldMigrateLocalData || priceCatalogResult.changedIds.length > 0) {
+        if (
+          cloudStock.length === 0 ||
+          shouldMigrateLocalData ||
+          priceCatalogResult.changedIds.length > 0 ||
+          priceCatalogResult.removedIds.length > 0
+        ) {
           const changedIdSet = new Set(priceCatalogResult.changedIds);
           const changedRows = priceCatalogResult.stock
             .filter((item) => cloudStock.length === 0 || shouldMigrateLocalData || changedIdSet.has(item.id))
@@ -448,6 +453,15 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
           if (priceSyncError) {
             console.warn("Não foi possível sincronizar a tabela de preços:", priceSyncError.message);
+          } else if (priceCatalogResult.removedIds.length > 0) {
+            const { error: duplicateCleanupError } = await client
+              .from("thebest_stock")
+              .delete()
+              .in("id", priceCatalogResult.removedIds);
+
+            if (duplicateCleanupError) {
+              console.warn("Não foi possível remover produtos duplicados:", duplicateCleanupError.message);
+            }
           }
         }
 

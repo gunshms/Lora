@@ -20,6 +20,7 @@ type CatalogEntry = {
 export type PriceCatalogApplyResult = {
   stock: StockItem[];
   changedIds: string[];
+  removedIds: string[];
   created: number;
   updated: number;
 };
@@ -158,9 +159,99 @@ const findByAliases = (items: StockItem[], aliases: string[]) => {
 const sameRecipe = (left?: RecipeIngredient[], right?: RecipeIngredient[]) =>
   JSON.stringify(left || []) === JSON.stringify(right || []);
 
-export function applyTheBestPriceCatalog(currentStock: StockItem[]): PriceCatalogApplyResult {
-  const nextStock = currentStock.map((item) => ({ ...item }));
+const itemScore = (item: StockItem) =>
+  (item.id.startsWith("menu-") ? 0 : 100) +
+  (item.quantity > 0 ? 20 : 0) +
+  (item.barcode ? 8 : 0) +
+  (item.image_url ? 8 : 0) +
+  ((item.recipe?.length || 0) > 0 ? 6 : 0) +
+  ((item.batches?.length || 0) > 0 ? 4 : 0) +
+  ((item.price_cost || 0) > 0 ? 2 : 0) +
+  ((item.price_sell || 0) > 0 ? 2 : 0);
+
+const mergeHistory = (items: StockItem[]) => {
+  const history = items.flatMap((item) => item.price_history || []);
+  const unique = new Map(history.map((entry) => [
+    `${entry.date}:${entry.cost}:${entry.sell}`,
+    entry,
+  ]));
+  return [...unique.values()].sort((left, right) => left.date.localeCompare(right.date));
+};
+
+function deduplicateStock(items: StockItem[]) {
+  const groups = new Map<string, StockItem[]>();
+
+  items.forEach((item) => {
+    const key = normalizeName(item.name);
+    groups.set(key, [...(groups.get(key) || []), item]);
+  });
+
+  const replacements = new Map<string, string>();
+  const removedIds: string[] = [];
   const changedIds = new Set<string>();
+  const stock = [...groups.values()].map((group) => {
+    const ranked = [...group].sort((left, right) => itemScore(right) - itemScore(left));
+    const survivor = { ...ranked[0] };
+
+    if (ranked.length === 1) return survivor;
+
+    ranked.slice(1).forEach((item) => {
+      replacements.set(item.id, survivor.id);
+      removedIds.push(item.id);
+    });
+
+    const quantity = Math.max(...ranked.map((item) => Number(item.quantity) || 0));
+    const richestRecipe = ranked.reduce((best, item) =>
+      (item.recipe?.length || 0) > (best.recipe?.length || 0) ? item : best
+    , ranked[0]);
+    const richestBatches = ranked.reduce((best, item) =>
+      (item.batches?.length || 0) > (best.batches?.length || 0) ? item : best
+    , ranked[0]);
+    const firstValue = <K extends keyof StockItem>(key: K) =>
+      ranked.find((item) => item[key] !== undefined && item[key] !== null && item[key] !== "")?.[key];
+
+    Object.assign(survivor, {
+      quantity,
+      status: quantity > 0
+        ? "in_stock"
+        : ranked.some((item) => item.status === "urgent") ? "urgent" : "planned",
+      price_cost: survivor.price_cost || firstValue("price_cost") || 0,
+      price_sell: survivor.price_sell || firstValue("price_sell") || 0,
+      barcode: survivor.barcode || firstValue("barcode"),
+      image_url: survivor.image_url || firstValue("image_url"),
+      recipe: richestRecipe.recipe || [],
+      batches: richestBatches.batches || [],
+      price_history: mergeHistory(ranked),
+      is_returnable: ranked.some((item) => item.is_returnable),
+      deposit_fee: Math.max(...ranked.map((item) => Number(item.deposit_fee) || 0)),
+    });
+    changedIds.add(survivor.id);
+    return survivor;
+  });
+
+  stock.forEach((item) => {
+    if (!item.recipe?.length) return;
+
+    const remapped = new Map<string, number>();
+    item.recipe.forEach((ingredient) => {
+      const productId = replacements.get(ingredient.product_id) || ingredient.product_id;
+      remapped.set(productId, Math.max(remapped.get(productId) || 0, ingredient.quantity));
+    });
+    const recipe = [...remapped].map(([product_id, quantity]) => ({ product_id, quantity }));
+
+    if (!sameRecipe(item.recipe, recipe)) {
+      item.recipe = recipe;
+      changedIds.add(item.id);
+    }
+  });
+
+  return { stock, changedIds, removedIds };
+}
+
+export function applyTheBestPriceCatalog(currentStock: StockItem[]): PriceCatalogApplyResult {
+  const deduplicated = deduplicateStock(currentStock);
+  const nextStock = deduplicated.stock;
+  const changedIds = new Set<string>(deduplicated.changedIds);
   let created = 0;
   let updated = 0;
 
@@ -242,6 +333,7 @@ export function applyTheBestPriceCatalog(currentStock: StockItem[]): PriceCatalo
   return {
     stock: nextStock,
     changedIds: [...changedIds],
+    removedIds: deduplicated.removedIds,
     created,
     updated,
   };

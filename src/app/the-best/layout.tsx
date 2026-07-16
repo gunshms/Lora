@@ -628,7 +628,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#F2F0E9] font-body flex flex-col lg:flex-row relative overflow-x-hidden selection:bg-white selection:text-black">
+    <div className="min-h-dvh bg-[#050505] text-[#F2F0E9] font-body flex flex-col lg:flex-row relative overflow-x-clip selection:bg-white selection:text-black">
 
       {/* Mobile Top Navigation Bar */}
       <header className="lg:hidden w-full px-6 py-4 bg-[#080809]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between sticky top-0 z-40">
@@ -697,7 +697,7 @@ function LayoutInner({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full lg:max-h-screen lg:overflow-y-auto min-h-[calc(100vh-69px)] lg:min-h-screen relative p-6 lg:p-10 flex flex-col justify-start">
+      <main className="flex-1 min-w-0 w-full min-h-[calc(100dvh-69px)] lg:min-h-dvh relative p-6 lg:p-10 flex flex-col justify-start">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-radial-gradient from-white/[0.015] to-transparent pointer-events-none -z-10 rounded-full blur-3xl" />
 
         {/* Animated Page Wrap */}

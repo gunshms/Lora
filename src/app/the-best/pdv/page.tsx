@@ -27,7 +27,9 @@ import {
   Layers3,
   Calculator,
   Banknote,
-  Activity
+  Activity,
+  Star,
+  ArrowUpDown
 } from "lucide-react";
 import Image from "next/image";
 import { buildProductArtDataUrl, getProductDisplayImage } from "@/lib/theBestProductImages";
@@ -44,7 +46,8 @@ type PaymentMethod =
 
 type DirectPaymentMethod = Exclude<PaymentMethod, "dinheiro" | "fiado">;
 
-type ProductQuickFilter = "todos" | "vendaveis" | "recentes" | "sem_preco" | "cervejas" | "destilados" | "outros";
+type ProductQuickFilter = "todos" | "vendaveis" | "favoritos" | "recentes" | "sem_preco" | "cervejas" | "destilados" | "outros";
+type ProductSort = "padrao" | "nome" | "preco" | "estoque";
 
 interface CartItem {
   id: string;
@@ -80,7 +83,7 @@ const isSellableProduct = (product: StockItem, stock: StockItem[]) =>
 
 const hasProductPrice = (product: StockItem) => !!product.price_sell && product.price_sell > 0;
 
-const getPdvProductCategory = (name: string): Exclude<ProductQuickFilter, "todos" | "vendaveis" | "recentes" | "sem_preco"> => {
+const getPdvProductCategory = (name: string): Exclude<ProductQuickFilter, "todos" | "vendaveis" | "favoritos" | "recentes" | "sem_preco"> => {
   const lower = normalizeProductText(name);
 
   if (
@@ -138,6 +141,8 @@ export default function PdvPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [productFilter, setProductFilter] = useState<ProductQuickFilter>("vendaveis");
   const [recentProductIds, setRecentProductIds] = useState<string[]>([]);
+  const [favoriteProductIds, setFavoriteProductIds] = useState<string[]>([]);
+  const [productSort, setProductSort] = useState<ProductSort>("padrao");
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
@@ -173,8 +178,11 @@ export default function PdvPage() {
     try {
       const saved = window.localStorage.getItem("thebest_pdv_recent_products");
       if (saved) setRecentProductIds(JSON.parse(saved));
+      const savedFavorites = window.localStorage.getItem("thebest_pdv_favorite_products");
+      if (savedFavorites) setFavoriteProductIds(JSON.parse(savedFavorites));
     } catch {
       setRecentProductIds([]);
+      setFavoriteProductIds([]);
     }
   }, []);
 
@@ -186,10 +194,21 @@ export default function PdvPage() {
     });
   }, []);
 
+  const toggleFavoriteProduct = useCallback((id: string) => {
+    setFavoriteProductIds((previous) => {
+      const next = previous.includes(id)
+        ? previous.filter((productId) => productId !== id)
+        : [id, ...previous];
+      window.localStorage.setItem("thebest_pdv_favorite_products", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const productStats = useMemo(() => {
     const stats: Record<ProductQuickFilter, number> = {
       todos: stock.length,
       vendaveis: 0,
+      favoritos: 0,
       recentes: 0,
       sem_preco: 0,
       cervejas: 0,
@@ -200,13 +219,14 @@ export default function PdvPage() {
     stock.forEach((item) => {
       const sellable = isSellableProduct(item, stock);
       if (sellable) stats.vendaveis += 1;
+      if (sellable && favoriteProductIds.includes(item.id)) stats.favoritos += 1;
       if (sellable && recentProductIds.includes(item.id)) stats.recentes += 1;
       if (sellable && !hasProductPrice(item)) stats.sem_preco += 1;
       stats[getPdvProductCategory(item.name)] += 1;
     });
 
     return stats;
-  }, [stock, recentProductIds]);
+  }, [stock, favoriteProductIds, recentProductIds]);
 
   // Filter & Search stock
   const filteredProducts = useMemo(() => {
@@ -219,12 +239,29 @@ export default function PdvPage() {
       const matchesFilter =
         productFilter === "todos" ||
         (productFilter === "vendaveis" && isSellableProduct(item, stock)) ||
+        (productFilter === "favoritos" && favoriteProductIds.includes(item.id) && isSellableProduct(item, stock)) ||
         (productFilter === "recentes" && recentProductIds.includes(item.id) && isSellableProduct(item, stock)) ||
         (productFilter === "sem_preco" && isSellableProduct(item, stock) && !hasProductPrice(item)) ||
         getPdvProductCategory(item.name) === productFilter;
 
       return matchesSearch && matchesFilter;
     }).sort((a, b) => {
+      if (productSort === "nome") {
+        return a.name.localeCompare(b.name, "pt-BR");
+      }
+
+      if (productSort === "preco") {
+        return (b.price_sell || 0) - (a.price_sell || 0);
+      }
+
+      if (productSort === "estoque") {
+        return getProductAvailableQuantity(b, stock) - getProductAvailableQuantity(a, stock);
+      }
+
+      if (productFilter === "favoritos") {
+        return favoriteProductIds.indexOf(a.id) - favoriteProductIds.indexOf(b.id);
+      }
+
       if (productFilter === "recentes") {
         return recentProductIds.indexOf(a.id) - recentProductIds.indexOf(b.id);
       }
@@ -237,9 +274,16 @@ export default function PdvPage() {
 
       return a.name.localeCompare(b.name, "pt-BR");
     });
-  }, [stock, searchTerm, productFilter, recentProductIds]);
+  }, [stock, searchTerm, productFilter, favoriteProductIds, recentProductIds, productSort]);
 
   const registerProducts = useMemo(() => {
+    const favoriteItems = favoriteProductIds
+      .map((id) => stock.find((item) => item.id === id))
+      .filter((item): item is StockItem => !!item && isSellableProduct(item, stock))
+      .slice(0, 8);
+
+    if (favoriteItems.length > 0) return favoriteItems;
+
     const recentItems = recentProductIds
       .map((id) => stock.find((item) => item.id === id))
       .filter((item): item is StockItem => !!item && isSellableProduct(item, stock))
@@ -251,7 +295,7 @@ export default function PdvPage() {
       .filter((item) => isSellableProduct(item, stock) && hasProductPrice(item))
       .sort((a, b) => (b.price_sell || 0) - (a.price_sell || 0))
       .slice(0, 8);
-  }, [stock, recentProductIds]);
+  }, [stock, favoriteProductIds, recentProductIds]);
 
   const stockAlertCount = useMemo(() => {
     return stock.filter((item) => !item.recipe?.length && item.quantity > 0 && item.quantity <= 3).length;
@@ -335,6 +379,7 @@ export default function PdvPage() {
 
   const productFilterOptions = [
     { id: "vendaveis", label: "Vendáveis", count: productStats.vendaveis },
+    { id: "favoritos", label: "Favoritos", count: productStats.favoritos },
     { id: "recentes", label: "Recentes", count: productStats.recentes },
     { id: "sem_preco", label: "Precificar", count: productStats.sem_preco },
     { id: "cervejas", label: "Cervejas", count: productStats.cervejas },
@@ -870,7 +915,7 @@ export default function PdvPage() {
 
             {/* Floating autocomplete suggestion dropdown list */}
             {searchTerm && filteredProducts.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto">
+              <div className="the-best-scroll absolute left-0 right-0 top-full mt-2 bg-[#0c0c0e]/95 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 max-h-60 overflow-y-auto">
                 <div className="p-2 border-b border-white/5 text-[9px] font-mono text-white/30 uppercase tracking-widest bg-white/[0.005]">
                   Sugestões de Pesquisa (Clique para Adicionar)
                 </div>
@@ -936,12 +981,29 @@ export default function PdvPage() {
                   Produtos e leitura de código
                 </span>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-white/30">
-                {filteredProducts.length} na tela
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-white/30">
+                  {filteredProducts.length} na tela
+                </span>
+                <label className="flex items-center gap-1.5 rounded-lg border border-white/5 bg-black/20 px-2 text-white/45">
+                  <ArrowUpDown className="w-3 h-3" />
+                  <span className="sr-only">Ordenar produtos</span>
+                  <select
+                    value={productSort}
+                    onChange={(event) => setProductSort(event.target.value as ProductSort)}
+                    aria-label="Ordenar produtos"
+                    className="h-8 bg-transparent text-[9px] font-mono uppercase tracking-wider text-white/60 outline-none"
+                  >
+                    <option value="padrao" className="bg-[#101012]">Ordem padrão</option>
+                    <option value="nome" className="bg-[#101012]">Nome A-Z</option>
+                    <option value="preco" className="bg-[#101012]">Maior preço</option>
+                    <option value="estoque" className="bg-[#101012]">Maior estoque</option>
+                  </select>
+                </label>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 xl:hidden">
               {productFilterOptions.map((filter) => {
                 const active = productFilter === filter.id;
 
@@ -977,6 +1039,7 @@ export default function PdvPage() {
                   onClick={() => {
                     setSearchTerm("");
                     setProductFilter("vendaveis");
+                    setProductSort("padrao");
                     searchInputRef.current?.focus();
                   }}
                   className="text-[9px] font-mono uppercase tracking-wider text-white/45 hover:text-white transition-colors"
@@ -990,15 +1053,17 @@ export default function PdvPage() {
               <div className="rounded-xl border border-white/5 bg-[#0b0b0d] p-3">
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <span className="text-[9px] font-mono uppercase tracking-wider text-white/35">
-                    {productStats.recentes > 0 ? "Itens recentes do caixa" : "Itens prováveis para começar"}
+                    {productStats.favoritos > 0
+                      ? "Favoritos do caixa"
+                      : productStats.recentes > 0 ? "Itens recentes do caixa" : "Itens prováveis para começar"}
                   </span>
-                  {productStats.recentes > 0 && (
+                  {(productStats.favoritos > 0 || productStats.recentes > 0) && (
                     <button
                       type="button"
-                      onClick={() => setProductFilter("recentes")}
+                      onClick={() => setProductFilter(productStats.favoritos > 0 ? "favoritos" : "recentes")}
                       className="text-[9px] font-mono uppercase tracking-wider text-emerald-400/70 hover:text-emerald-300"
                     >
-                      Ver recentes
+                      {productStats.favoritos > 0 ? "Ver favoritos" : "Ver recentes"}
                     </button>
                   )}
                 </div>
@@ -1025,73 +1090,92 @@ export default function PdvPage() {
 
           {/* Products Grid */}
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2 max-h-[50vh] lg:max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-2">
               {filteredProducts.map((product) => {
                 const availableQuantity = getProductAvailableQuantity(product, stock);
                 const isOutOfStock = availableQuantity <= 0;
                 const isBlockedOutOfStock = !isSellableProduct(product, stock);
                 const hasNoPrice = !product.price_sell || product.price_sell <= 0;
+                const isFavorite = favoriteProductIds.includes(product.id);
 
                 return (
-                  <button
+                  <div
                     key={product.id}
-                    onClick={() => addToCart(product)}
-                    disabled={isBlockedOutOfStock}
-                    className={`grid grid-cols-[52px_1fr_auto] items-center gap-3 text-left bg-[#0b0b0d] border border-white/5 px-3 py-2.5 rounded-xl relative overflow-hidden group transition-all duration-300 ${
+                    className={`grid grid-cols-[minmax(0,1fr)_36px] items-stretch bg-[#0b0b0d] border border-white/5 rounded-xl relative overflow-hidden group transition-all duration-300 ${
                       isBlockedOutOfStock
-                        ? "cursor-not-allowed opacity-45"
-                        : "hover:border-white/10 active:scale-[0.98]"
+                        ? "opacity-45"
+                        : "hover:border-white/10"
                     }`}
                   >
-                    <div className="h-12 w-12 rounded-lg bg-black/40 border border-white/10 p-1.5 overflow-hidden flex items-center justify-center group-hover:border-white/20 transition-colors">
-                      <Image
-                        src={getProductDisplayImage(product)}
-                        alt={product.name}
-                        width={52}
-                        height={52}
-                        unoptimized
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = buildProductArtDataUrl(product);
-                        }}
-                        className="w-full h-full object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addToCart(product)}
+                      disabled={isBlockedOutOfStock}
+                      title={product.name}
+                      className={`grid min-w-0 grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left active:scale-[0.99] ${isBlockedOutOfStock ? "cursor-not-allowed" : ""}`}
+                    >
+                      <div className="h-12 w-12 rounded-lg bg-black/40 border border-white/10 p-1.5 overflow-hidden flex items-center justify-center group-hover:border-white/20 transition-colors">
+                        <Image
+                          src={getProductDisplayImage(product)}
+                          alt={product.name}
+                          width={52}
+                          height={52}
+                          unoptimized
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = buildProductArtDataUrl(product);
+                          }}
+                          className="w-full h-full object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,0.35)]"
+                        />
+                      </div>
 
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors truncate">
-                        {product.name}
-                      </h3>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
-                          isOutOfStock
-                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                            : "bg-white/5 text-white/50 border-white/5"
-                        }`}>
-                          {isBlockedOutOfStock
-                            ? product.recipe?.length ? "Sem ingredientes" : "Sem estoque"
-                            : product.recipe?.length ? `Rende: ${availableQuantity}` : `Qtd: ${availableQuantity}`}
-                        </span>
-                        {product.barcode && (
-                          <span className="text-[9px] font-mono text-white/25 truncate max-w-[150px]">
-                            {product.barcode}
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-sm text-white/90 leading-tight group-hover:text-white transition-colors truncate">
+                          {product.name}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <span className={`text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${
+                            isOutOfStock
+                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              : "bg-white/5 text-white/50 border-white/5"
+                          }`}>
+                            {isBlockedOutOfStock
+                              ? product.recipe?.length ? "Sem ingredientes" : "Sem estoque"
+                              : product.recipe?.length ? `Rende: ${availableQuantity}` : `Qtd: ${availableQuantity}`}
+                          </span>
+                          {product.barcode && (
+                            <span className="text-[9px] font-mono text-white/25 truncate max-w-[110px]">
+                              {product.barcode}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex min-w-[78px] justify-end">
+                        {hasNoPrice ? (
+                          <span className="text-[9px] font-mono text-emerald-400/80 uppercase font-semibold flex items-center gap-1">
+                            <Settings className="w-3 h-3" /> Precificar
+                          </span>
+                        ) : (
+                          <span className="font-mono text-sm font-bold text-white">
+                            {formatCurrency(product.price_sell || 0)}
                           </span>
                         )}
                       </div>
-                    </div>
+                    </button>
 
-                    <div className="flex min-w-[86px] justify-end">
-                      {hasNoPrice ? (
-                        <span className="text-[10px] font-mono text-emerald-400/80 uppercase font-semibold flex items-center gap-1">
-                          <Settings className="w-3 h-3 animate-spin" /> Precificar
-                        </span>
-                      ) : (
-                        <span className="font-mono text-sm font-bold text-white">
-                          {formatCurrency(product.price_sell || 0)}
-                        </span>
-                      )}
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavoriteProduct(product.id)}
+                      aria-label={isFavorite ? `Remover ${product.name} dos favoritos` : `Favoritar ${product.name}`}
+                      title={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                      className={`flex items-center justify-center border-l border-white/5 transition-colors ${
+                        isFavorite ? "bg-amber-400/10 text-amber-300" : "text-white/20 hover:bg-white/[0.03] hover:text-white/65"
+                      }`}
+                    >
+                      <Star className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -1169,7 +1253,7 @@ export default function PdvPage() {
 
             {/* Cart Items List */}
             {activeCart.length > 0 ? (
-              <div className="space-y-3 max-h-[30vh] lg:max-h-[40vh] overflow-y-auto pr-1">
+              <div className="the-best-scroll space-y-3 max-h-[30vh] lg:max-h-[40vh] overflow-y-auto pr-1">
                 {activeCart.map((item) => (
                   <div
                     key={item.id}

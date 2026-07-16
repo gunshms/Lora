@@ -394,7 +394,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
           cloudRows: T[],
           localKey: string,
         ): Promise<T[]> {
-          if (!shouldMigrateLocalData) return cloudRows;
+          if (!shouldMigrateLocalData || cloudRows.length > 0) return cloudRows;
 
           const localRows = readLocalItems<T>(localKey);
           if (localRows.length > 0) {
@@ -415,6 +415,7 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
         const debtsData = await mergeLocalDataOnce("thebest_debts", debtsRes.data || [], "thebest_debts");
         const auditData = await mergeLocalDataOnce("thebest_audit", auditRes.data || [], "thebest_audit");
         const localStock = shouldMigrateLocalData
+          && cloudStock.length === 0
           ? readLocalItems<StockItem>("thebest_stock")
           : [];
         const mergedStock = new Map(cloudStock.map((item) => [item.id, item]));
@@ -424,13 +425,13 @@ export function AdegaProvider({ children }: { children: ReactNode }) {
 
         if (
           cloudStock.length === 0 ||
-          shouldMigrateLocalData ||
+          localStock.length > 0 ||
           priceCatalogResult.changedIds.length > 0 ||
           priceCatalogResult.removedIds.length > 0
         ) {
           const changedIdSet = new Set(priceCatalogResult.changedIds);
           const changedRows = priceCatalogResult.stock
-            .filter((item) => cloudStock.length === 0 || shouldMigrateLocalData || changedIdSet.has(item.id))
+              .filter((item) => cloudStock.length === 0 || localStock.length > 0 || changedIdSet.has(item.id))
             .map((item) => ({
               id: item.id,
               name: item.name,

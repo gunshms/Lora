@@ -165,13 +165,13 @@ export default function CatalogoPublicoPage() {
     : `https://wa.me/?text=${whatsappMessage}`;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#F2F0E9] pb-24 relative overflow-hidden flex flex-col items-center">
+    <div className="min-h-dvh bg-[#050505] text-[#F2F0E9] pb-24 relative overflow-x-clip flex flex-col items-center">
       {/* Decorative Glowing Mesh in background */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-radial-gradient from-amber-500/[0.02] to-transparent pointer-events-none rounded-full blur-3xl" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-radial-gradient from-emerald-500/[0.02] to-transparent pointer-events-none rounded-full blur-3xl" />
 
       {/* Catalog Header with glowing branding */}
-      <header className="w-full max-w-lg px-6 pt-10 pb-6 text-center space-y-4">
+      <header className="w-full max-w-5xl px-4 sm:px-6 pt-10 pb-6 text-center space-y-4">
         <div className="flex justify-center mb-1">
           <div className="relative w-20 h-20 bg-amber-500/5 rounded-full flex items-center justify-center border border-amber-500/20 shadow-[0_0_30px_rgba(245,158,11,0.05)]">
             <Image
@@ -205,7 +205,7 @@ export default function CatalogoPublicoPage() {
       </header>
 
       {/* Sticky Search & Navigation Panel */}
-      <div className="w-full max-w-lg px-6 sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-md py-4 border-b border-white/5 space-y-4">
+      <div className="w-full max-w-5xl px-4 sm:px-6 sticky top-0 z-30 bg-[#050505]/92 backdrop-blur-md py-4 border-b border-white/5 space-y-4">
         {/* Search bar */}
         <div className="relative">
           <Search className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -219,7 +219,7 @@ export default function CatalogoPublicoPage() {
         </div>
 
         {/* Categories Tab Swiper */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none">
+        <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden select-none">
           {categoryOptions.map((cat) => {
             const Icon = cat.icon;
             const active = selectedCategory === cat.id;
@@ -266,9 +266,9 @@ export default function CatalogoPublicoPage() {
       </div>
 
       {/* Grid of Public Catalog Cards */}
-      <main className="w-full max-w-lg px-6 mt-6 flex-1">
+      <main className="w-full max-w-5xl px-4 sm:px-6 mt-6 flex-1">
         {visibleProducts.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <AnimatePresence mode="popLayout">
               {visibleProducts.map((item) => {
                 const isCerveja = getProductCategory(item.name) === "cervejas";
@@ -383,7 +383,7 @@ export default function CatalogoPublicoPage() {
       </footer>
 
       {/* Small informative details box at the end */}
-      <div className="w-full max-w-lg px-6 mt-8 text-center text-[8px] font-mono text-white/20 uppercase tracking-widest leading-relaxed">
+      <div className="w-full max-w-5xl px-4 sm:px-6 mt-8 text-center text-[8px] font-mono text-white/20 uppercase tracking-widest leading-relaxed">
         Adega &amp; Conveniência The Best • Avenida Central, 1234 • Aberto até as 04h
       </div>
     </div>
